@@ -785,6 +785,11 @@ void AIController::assignBaseAttack()
 	for (auto x : myCon->enemyUnits(filter))
 		if (!minBloodHero || x->hp < minBloodHero->hp)
 			minBloodHero = x;
+
+	if (!minBloodHero)
+		for (auto x : myCon->friendlyUnits(filter))
+			if (x->isHero() && x->hp < 100)
+				minBloodHero = x;
 	myCon->baseAttack(minBloodHero);
 }
 
