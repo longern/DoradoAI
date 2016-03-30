@@ -151,7 +151,7 @@ void findPath(const PMap &map, Pos start, Pos dest, const vector<Pos> &blocks, v
 		Node(int xp, int yp, int d, int p) :x(xp), y(yp), level(d), priority(p) {}
 		void updatePriority(int xDest, int yDest)
 		{
-			priority = level + estimate(xDest, yDest) * 10;
+			priority = level + estimate(xDest, yDest) * 9;
 		}
 		void nextLevel()
 		{
@@ -526,7 +526,11 @@ public:
 			this->worth += goBackHomeArg;
 		if (friendsInRange(worker) < AIController::ins()->myHeros.size()
 			&& friendsInRange(worker) + 1 < enemiesInRange(worker))
-			this->worth += 400 * pow(2, enemiesInRange(worker) - friendsInRange(worker));
+		{
+			if (friendsInRange(worker) == 1)
+				this->worth += 60;
+			this->worth += 80 * pow(2, enemiesInRange(worker) - friendsInRange(worker));
+		}
 		return this->worth;
 	}
 
@@ -652,7 +656,7 @@ public:
 		if (!bePushedMyBase)
 			return this->worth;
 		if (AIController::ins()->myHeros.size() >= HERO_LIMIT - 1)
-			if (AIController::ins()->enemyBase && dis2(AIController::ins()->enemyBase->pos, worker->pos) <= 225)
+			if (AIController::ins()->enemyBase && dis2(AIController::ins()->enemyBase->pos, worker->pos) <= 900)
 				this->worth += 10000;
 			else
 				this->worth += 200;
@@ -689,7 +693,7 @@ AIController::AIController(const PMap &map, const PPlayerInfo &info, PCommand &c
 {
 	instance = this;
 	_console = new Console(map, info, cmd);
-	//_console->changeShortestPathFunc(findPath);
+	_console->changeShortestPathFunc(findPath);
 
 	this->map = &map;
 	this->info = &info;
