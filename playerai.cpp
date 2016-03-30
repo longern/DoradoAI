@@ -66,7 +66,7 @@ namespace lsy
 	static int goBackHomeHp = 100, goBackHomeArg = 300;
 	static int hammerDizzy = 50;
 	static int strategyDisabled = -1 << 30;
-	static bool bePushedMyBase = true;
+	static int bePushedMyBase = -2100000000;
 
 	static const std::vector<std::string> HERO_NAME = { "Hammerguard", "Master", "Berserker", "Scouter" };
 	static const std::set<std::string> ACTIVE_SKILLS = { "HammerAttack", "Blink", "Sacrifice", "SetObserver" };
@@ -529,6 +529,9 @@ public:
 		{
 			this->worth = goBackHomeArg;
 		}
+		if (myCon->getMilitaryBase()->hp < 500
+			|| myCon->getMilitaryBase()->hp < 1200 && myCon->round() - bePushedMyBase <= 30)
+			this->worth += 400;
 		return this->worth;
 	}
 
@@ -563,13 +566,13 @@ public:
 				friendProtectBase++;
 
 		if (enemyAttackBase > 0)
-			bePushedMyBase = true;
+			bePushedMyBase = myCon->round();
 
 		if (enemyAttackBase > friendProtectBase)
 			this->worth += 300;
 		return this->worth;
 	}
-	void work() { myCon->callBackHero(worker); }
+	void work() { myCon->callBackHero(worker, campRotate(15, 8)); }
 };
 
 class GoCenterMining : public Strategy //采矿的策略
@@ -643,6 +646,18 @@ private:
 	PUnit* target;
 };
 
+class ProtectBase : public Strategy  // 推老家策略
+{
+public:
+	ProtectBase(PUnit *worker) : Strategy(worker, "ProtectBase") { }
+public:
+	int countWorth()
+	{
+		return worth = 0;
+	}
+	void work() { }
+};
+
 class PushBase : public Strategy  // 推老家策略
 {
 public:
@@ -651,8 +666,8 @@ public:
 	int countWorth()
 	{
 		this->worth = 0;
-		if (!bePushedMyBase)
-			return this->worth;
+		/*if (!bePushedMyBase)
+			return this->worth;*/
 		if (AIController::ins()->myHeros.size() >= HERO_LIMIT - 1)
 			if (AIController::ins()->enemyBase && dis2(AIController::ins()->enemyBase->pos, worker->pos) <= 900)
 				this->worth += 10000;
@@ -697,7 +712,7 @@ AIController::AIController(const PMap &map, const PPlayerInfo &info, PCommand &c
 {
 	instance = this;
 	_console = new Console(map, info, cmd);
-	_console->changeShortestPathFunc(findPath);
+	//_console->changeShortestPathFunc(findPath);
 
 	this->map = &map;
 	this->info = &info;
