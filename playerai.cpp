@@ -527,9 +527,7 @@ public:
 		if (friendsInRange(worker) < AIController::ins()->myHeros.size()
 			&& friendsInRange(worker) + 1 < enemiesInRange(worker))
 		{
-			if (friendsInRange(worker) == 1)
-				this->worth += 60;
-			this->worth += 80 * pow(2, enemiesInRange(worker) - friendsInRange(worker));
+			this->worth = goBackHomeArg;
 		}
 		return this->worth;
 	}
@@ -659,7 +657,13 @@ public:
 			if (AIController::ins()->enemyBase && dis2(AIController::ins()->enemyBase->pos, worker->pos) <= 900)
 				this->worth += 10000;
 			else
+			{
 				this->worth += 200;
+				for (auto x : AIController::ins()->strategyPool())
+					if (x->getWorker() == worker && x->getName() == "GoBackHome")
+						if (x->getWorth() >= goBackHomeArg)
+							this->worth += 150;
+			}
 		return this->worth;
 	}
 	void work()
@@ -674,7 +678,7 @@ public:
 				if (dis2(x->pos, worker->pos) <= worker->range || campRotate(x->pos).y >= 110)
 					friendHeroCount++;
 
-			if(campRotate(worker->pos).y <= 50 && campRotate(worker->pos).x <= 110)
+			if(campRotate(worker->pos).x <= 108 && campRotate(worker->pos).y <= 65)
 				myCon->move(campRotate(116, 46));
 			else if(friendHeroCount >= HERO_LIMIT - 1
 				|| worker->pos.y > 120
@@ -731,7 +735,7 @@ void AIController::globalStrategy()
 		ins()->buyNewHero();
 	}
 
-	
+	assignBaseAttack();
 }
 
 void AIController::levelupHero()
