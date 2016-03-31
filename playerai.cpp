@@ -56,9 +56,12 @@ AIController *AIController::instance = nullptr;
 class Memory
 {
 public:
-	Memory *ins() { if (_instance) return _instance; else return _instance = new Memory; }
+	static Memory *ins() { if (_instance) return _instance; else return _instance = new Memory; }
 private:
-	Memory() { }
+	Memory()
+	{
+		srand((unsigned int)time(nullptr));
+	}
 	static Memory *_instance;
 };
 
@@ -651,6 +654,8 @@ public:
 	int countWorth()
 	{
 		this->worth = 0;
+		if (myCon->gold() - myCon->goldCostCurrentRound() < myCon->callBackCost(worker->level))
+			return worth = strategyDisabled;
 		if (dis2(worker->pos, AIController::ins()->myBase->pos) <= MILITARY_BASE_RANGE)
 			return this->worth;
 		int enemyAttackBase = 0;
@@ -770,7 +775,7 @@ public:
 		{
 			int friendHeroCount = 0;
 			for (auto x : AIController::ins()->myHeros)
-				if (dis2(x->pos, worker->pos) <= worker->range || campRotate(x->pos).y >= 110)
+				if (dis2(x->pos, worker->pos) <= worker->range || campRotate(x->pos).y >= 110 || x->findBuff("Reviving"))
 					friendHeroCount++;
 
 			if(campRotate(worker->pos).x <= 108 && campRotate(worker->pos).y <= 65)
@@ -932,7 +937,7 @@ void AIController::action()
 /****************************** Entry Function **********************************/
 void player_ai(const PMap &map, const PPlayerInfo &info, PCommand &cmd)
 {
-	srand((unsigned int)time(NULL));
+	Memory::ins();
 	AIController controller(map, info, cmd);
 
 	if (info.round == 0)
