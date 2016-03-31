@@ -16,7 +16,7 @@ using namespace std;
 class Strategy;
 class AIHero;
 
-class AIController //控制ai的主类
+class AIController  // 控制ai的主类
 {
 public:
 	AIController(const PMap &map, const PPlayerInfo &info, PCommand &cmd);
@@ -52,6 +52,17 @@ public:
 };
 
 AIController *AIController::instance = nullptr;
+
+class Memory
+{
+public:
+	Memory *ins() { if (_instance) return _instance; else return _instance = new Memory; }
+private:
+	Memory() { }
+	static Memory *_instance;
+};
+
+Memory *Memory::_instance = nullptr;
 /********************************************************************************/
 
 
@@ -72,9 +83,9 @@ namespace lsy
 	static const std::set<std::string> ACTIVE_SKILLS = { "HammerAttack", "Blink", "Sacrifice", "SetObserver" };
 
 	static const std::string &strHammerguard = HERO_NAME[0];
-	static const std::string strMaster = HERO_NAME[1];
-	static const std::string strBerserker = HERO_NAME[2];
-	static const std::string strScouter = HERO_NAME[3];
+	static const std::string &strMaster = HERO_NAME[1];
+	static const std::string &strBerserker = HERO_NAME[2];
+	static const std::string &strScouter = HERO_NAME[3];
 }
 
 using namespace lsy;
@@ -281,7 +292,7 @@ protected:
 	std::string name;
 };
 
-class AIHero //对应每个英雄的策略决策
+class AIHero  // 对应每个英雄的策略决策
 {
 public:
 	AIHero(PUnit* newHero) { mHero = newHero; mStrategy = NULL; } //默认选择回家的策略
@@ -411,7 +422,7 @@ public:
 		this->worth = 0;
 		if (!worker->canUseSkill("HammerAttack"))
 			return this->worth = strategyDisabled;
-		if (target->hp <= 0)
+		if (target->findBuff("Reviving"))
 			return this->worth;
 		return this->worth;
 	}
@@ -436,7 +447,7 @@ public:
 		this->worth = 0;
 		if (!worker->canUseSkill("Sacrifice"))
 			return this->worth = strategyDisabled;
-		if(target->hp <= 0)
+		if (target->findBuff("Reviving"))
 			return this->worth;
 		return this->worth;
 	}
@@ -744,7 +755,7 @@ public:
 			{
 				this->worth += 200;
 				for (auto x : AIController::ins()->strategyPool())
-					if (x->getWorker() == worker && x->getName() == "GoBackHome")
+					if (x->getWorker() == worker && x->getName() == "GoHome")
 						if (x->getWorth() >= goBackHomeArg)
 							this->worth += 150;
 			}
