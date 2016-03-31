@@ -323,7 +323,7 @@ public:
 		}
 		if (worker->findBuff("Reviving") != nullptr)
 		{
-			name = "Reviving";
+			name = "Dead";
 			return worth = 2147483640;
 		}
 		return worth = strategyDisabled;
@@ -434,6 +434,78 @@ private:
 	Pos targetPos;
 };
 
+class UseHammerAttack : public Strategy
+{
+public:
+	UseHammerAttack(PUnit* worker, PUnit* target) : Strategy(worker, "UseHamAtk") { setTarget(target); }
+
+	int countWorth()
+	{
+		this->worth = 0;
+		if (!worker->canUseSkill("HammerAttack"))
+			return this->worth = strategyDisabled;
+		if (target->hp <= 0)
+			return this->worth;
+		return this->worth;
+	}
+
+	void work() {
+		myCon->selectUnit(worker);
+		myCon->useSkill("HammerAttack", target);
+	}
+
+	void setTarget(PUnit* target) { this->target = target; }
+private:
+	PUnit *target;
+};
+
+class UseSacrifice : public Strategy
+{
+public:
+	UseSacrifice(PUnit* worker, PUnit* target) : Strategy(worker, "UseSacri") { setTarget(target); }
+
+	int countWorth()
+	{
+		this->worth = 0;
+		if (!worker->canUseSkill("Sacrifice"))
+			return this->worth = strategyDisabled;
+		if(target->hp <= 0)
+			return this->worth;
+		return this->worth;
+	}
+
+	void work() {
+		myCon->selectUnit(worker);
+		myCon->useSkill("Sacrifice", target);
+	}
+
+	void setTarget(PUnit* target) { this->target = target; }
+private:
+	PUnit *target;
+};
+
+class UseBlink : public Strategy
+{
+	UseBlink(PUnit* worker) : Strategy(worker, "UseBlink") { }
+
+	int countWorth()
+	{
+		this->worth = 0;
+		if (!worker->canUseSkill("Blink"))
+			return this->worth = strategyDisabled;
+		return this->worth;
+	}
+
+	void work() {
+		myCon->selectUnit(worker);
+		myCon->useSkill("Blink", pos);
+	}
+
+	void setPos(PUnit* target) { this->pos = pos; }
+private:
+	Pos pos;
+};
+
 class UseSkill : public Strategy  // 对某个单位释放技能的策略
 {
 public:
@@ -517,7 +589,7 @@ private:
 class GoBackHome : public Strategy //英雄步行回家的策略
 {
 public:
-	GoBackHome(PUnit* worker) : Strategy(worker, "GoBackHome") { }
+	GoBackHome(PUnit* worker) : Strategy(worker, "GoHome") { }
 public:
 	int countWorth()
 	{
@@ -529,9 +601,6 @@ public:
 		{
 			this->worth = goBackHomeArg;
 		}
-		if (myCon->getMilitaryBase()->hp < 500
-			|| myCon->getMilitaryBase()->hp < 1200 && myCon->round() - bePushedMyBase <= 30)
-			this->worth += 400;
 		return this->worth;
 	}
 
@@ -545,7 +614,7 @@ public:
 class CallBackHome : public Strategy //召回英雄的策略
 {
 public:
-	CallBackHome(PUnit* worker) : Strategy(worker, "CallBackHome") { setWorker(worker); name = "CallBackHome"; }
+	CallBackHome(PUnit* worker) : Strategy(worker, "CallBack") { setWorker(worker); name = "CallBackHome"; }
 public:
 	int countWorth()
 	{
@@ -604,7 +673,7 @@ public:
 private:
 };
 
-class GoMining : public Strategy //采矿的策略
+class GoMining : public Strategy  // 打野的策略
 {
 public:
 	GoMining(PUnit* worker, Pos target) : Strategy(worker, "GoMining") { setTarget(target); }
@@ -842,7 +911,7 @@ void AIController::action()
 	}
 	for (size_t i = 0; i < AIHeroList.size(); ++i)
 	{
-		//cout << AIHeroList[i]->getStrategy()->getName() << ' ' << AIHeroList[i]->getStrategy()->getWorth() << '\t';
+		cout << AIHeroList[i]->getStrategy()->getName() << ' ' << AIHeroList[i]->getStrategy()->getWorth() << '\t';
 		AIHeroList[i]->action();
 	}
 }
