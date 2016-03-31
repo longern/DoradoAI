@@ -380,58 +380,25 @@ private:
 	PUnit* target;
 };
 
-class PlugEye : public Strategy  // 放眼策略
+class Tempt : public Strategy  // 引诱敌人（野怪）的策略-即几乎保证自己不受伤的情况下进行hit-and-run
 {
 public:
-	PlugEye(PUnit* worker) : Strategy(worker, "PlugEye") { }
+	Tempt(PUnit* worker, PUnit* target) : Strategy(worker, "Tempt") { setTarget(target); }
 public:
-	void sklSetObserver(PSkill *skill)
-	{
-		this->worth = 0;
-		if (myCon->round() < 30)
-			return;
-		int fHeroNearCenter = 0;
-		UnitFilter filter;
-		filter.setAreaFilter(new Circle(MINE_POS[0], 225));
-		for (auto x : myCon->enemyUnits(filter))
-		{
-			if (x->isHero())
-				return;
-		}
-		for (auto x : AIController::ins()->myHeros)
-		{
-			if (x != worker && dis2(x->pos, MINE_POS[0]) < 144 && x->findBuff("BeAttacked") == nullptr)
-				fHeroNearCenter++;
-		}
-		if (fHeroNearCenter >= 2)
-		{
-			targetPos = campRotate(99, 84);
-			this->worth += 100;
-		}
-	}
-
 	int countWorth()
 	{
-		this->worth = 0;
-		myCon->selectUnit(worker);
-		if (!worker->canUseSkill("SetObserver"))
-			return this->worth = strategyDisabled;
-		else
-			sklSetObserver(myCon->getSkill("SetObserver", worker));
+		return this->worth = 0;
+		if (worker->findSkill("Attack") && worker->findSkill("Attack")->cd > 0)
+			this->worth = 300;
 		return this->worth;
 	}
-
-	void work()
-	{
+	void work() {
 		myCon->selectUnit(worker);
-		if (dis2(worker->pos, targetPos) <= 25)
-			myCon->useSkill(myCon->getSkill("SetObserver", worker), targetPos);
-		else
-			myCon->move(targetPos);
+		myCon->attack(target);
 	}
-
+	void setTarget(PUnit* target) { this->target = target; }
 private:
-	Pos targetPos;
+	PUnit* target;
 };
 
 class UseHammerAttack : public Strategy
@@ -504,6 +471,60 @@ class UseBlink : public Strategy
 	void setPos(PUnit* target) { this->pos = pos; }
 private:
 	Pos pos;
+};
+
+class PlugEye : public Strategy  // 放眼策略
+{
+public:
+	PlugEye(PUnit* worker) : Strategy(worker, "PlugEye") { }
+public:
+	void sklSetObserver(PSkill *skill)
+	{
+		this->worth = 0;
+		if (myCon->round() < 30)
+			return;
+		int fHeroNearCenter = 0;
+		UnitFilter filter;
+		filter.setAreaFilter(new Circle(MINE_POS[0], 225));
+		for (auto x : myCon->enemyUnits(filter))
+		{
+			if (x->isHero())
+				return;
+		}
+		for (auto x : AIController::ins()->myHeros)
+		{
+			if (x != worker && dis2(x->pos, MINE_POS[0]) < 144 && x->findBuff("BeAttacked") == nullptr)
+				fHeroNearCenter++;
+		}
+		if (fHeroNearCenter >= 2)
+		{
+			targetPos = campRotate(99, 84);
+			this->worth += 100;
+		}
+	}
+
+	int countWorth()
+	{
+		this->worth = 0;
+		myCon->selectUnit(worker);
+		if (!worker->canUseSkill("SetObserver"))
+			return this->worth = strategyDisabled;
+		else
+			sklSetObserver(myCon->getSkill("SetObserver", worker));
+		return this->worth;
+	}
+
+	void work()
+	{
+		myCon->selectUnit(worker);
+		if (dis2(worker->pos, targetPos) <= 25)
+			myCon->useSkill(myCon->getSkill("SetObserver", worker), targetPos);
+		else
+			myCon->move(targetPos);
+	}
+
+private:
+	Pos targetPos;
 };
 
 class UseSkill : public Strategy  // 对某个单位释放技能的策略
@@ -694,28 +715,7 @@ private:
 	Pos target;
 };
 
-class Tempt : public Strategy  // 引诱敌人（野怪）的策略-即几乎保证自己不受伤的情况下进行hit-and-run
-{
-public:
-	Tempt(PUnit* worker, PUnit* target) : Strategy(worker, "Tempt") { setTarget(target); }
-public:
-	int countWorth()
-	{
-		return this->worth = 0;
-		if(worker->findSkill("Attack") && worker->findSkill("Attack")->cd > 0)
-			this->worth = 300;
-		return this->worth;
-	}
-	void work() {
-		myCon->selectUnit(worker);
-		myCon->attack(target);
-	}
-	void setTarget(PUnit* target) { this->target = target; }
-private:
-	PUnit* target;
-};
-
-class ProtectBase : public Strategy  // 推老家策略
+class ProtectBase : public Strategy  // 保护老家策略
 {
 public:
 	ProtectBase(PUnit *worker) : Strategy(worker, "ProtectBase") { }
