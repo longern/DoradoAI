@@ -718,6 +718,14 @@ public:
 	int countWorth()
 	{
 		this->worth = 0;
+		UnitFilter filter;
+		filter.setAreaFilter(new Circle(MINE_POS[0], 256));
+		for (auto x : myCon->friendlyUnits(filter))
+			if (x->isHero())
+				return this->worth;
+		this->worth += miningArg;
+		if(target == campRotate(MINE_POS[1]))
+			this->worth += 50;
 		return this->worth;
 	}
 
