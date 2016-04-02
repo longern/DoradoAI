@@ -61,8 +61,11 @@ private:
 	Memory()
 	{
 		srand((unsigned int)time(nullptr));
+		badSituation = false;
 	}
 	static Memory *_instance;
+public:
+	bool badSituation;
 };
 
 Memory *Memory::_instance = nullptr;
@@ -74,7 +77,7 @@ namespace lsy
 {
 	static int heroRank = 1234;
 	static int newHeroFirst = 1;
-	static int attackArg = 200, supportRange = 600, monsterAvoid = 50, enemyAvoid = 30, deltaFightArg = 100;
+	static int attackArg = 200, supportRange = 600, monsterAvoid = 45, enemyAvoid = 30, deltaFightArg = 100;
 	static int outOfRangeArg = 100;
 	static int miningArg = 100, sameMineArg = 10, centerMineArg = 30;
 	static int goBackHomeHp = 100, goBackHomeArg = 300;
@@ -345,7 +348,55 @@ public:
 	void work() { }
 };
 
-class Attack : public Strategy //攻击某个单位的策略
+class NormalAttack : public Strategy
+{
+public:
+	NormalAttack(PUnit *worker, PUnit *target) : Strategy(worker, "NorAtk") { setTarget(target); }
+	int countWorth()
+	{
+		this->worth = 0;
+		if (target->findBuff("Reviving") != NULL || target->hp <= 0
+			|| dis2(worker->pos, target->pos) <= worker->range)
+			return this->worth = strategyDisabled;
+		return this->worth;
+	}
+
+	void work()
+	{
+		myCon->selectUnit(worker);
+		myCon->attack(target);
+	}
+
+	void setTarget(PUnit* target) { this->target = target; }
+private:
+	PUnit* target;
+};
+
+class Chase : public Strategy
+{
+public:
+	Chase(PUnit *worker, PUnit *target) : Strategy(worker, "Chase") { setTarget(target); }
+	int countWorth()
+	{
+		this->worth = 0;
+		if (target->findBuff("Reviving") != NULL || target->hp <= 0
+			|| dis2(worker->pos, target->pos) <= worker->range)
+			return this->worth = strategyDisabled;
+		return this->worth;
+	}
+
+	void work()
+	{
+		myCon->selectUnit(worker);
+		myCon->attack(target);
+	}
+
+	void setTarget(PUnit* target) { this->target = target; }
+private:
+	PUnit* target;
+};
+
+class Attack : public Strategy  // 攻击某个单位的策略
 {
 public:
 	Attack(PUnit* worker, PUnit* target) : Strategy(worker, "Attack") { setTarget(target); }
@@ -354,7 +405,7 @@ public:
 	{
 		this->worth = 0;
 		if (target->findBuff("Reviving") != NULL || target->hp <= 0)
-			this->worth = strategyDisabled;
+			return this->worth = strategyDisabled;
 
 		if (dis2(worker->pos, target->pos) <= supportRange)
 		{
@@ -379,7 +430,8 @@ public:
 			{
 				this->worth -= outOfRangeArg;
 			}
-			if (target->isWild()) this->worth -= monsterAvoid;
+			if (target->isWild())
+				this->worth -= monsterAvoid;
 		}
 		return this->worth;
 	}
@@ -719,11 +771,23 @@ public:
 	{
 		this->worth = 0;
 		UnitFilter filter;
-		filter.setAreaFilter(new Circle(MINE_POS[0], 256));
+		filter.setAreaFilter(new Circle(MINE_POS[0], 144));
+
+		int enemyCount = 0;
+		for (auto x : myCon->enemyUnits(filter))
+			if (x->isHero())
+				++enemyCount;
+		if (enemyCount > AIController::ins()->myHeros.size())
+			Memory::ins()->badSituation = true;
+
+		bool hasFriendInCenter = false;;
 		for (auto x : myCon->friendlyUnits(filter))
 			if (x->isHero())
-				return this->worth;
-		this->worth += miningArg;
+				hasFriendInCenter = true;
+
+		if (Memory::ins()->badSituation || !hasFriendInCenter)
+			this->worth += miningArg;
+
 		if(target == campRotate(MINE_POS[1]))
 			this->worth += 50;
 		return this->worth;
@@ -896,7 +960,7 @@ void AIController::assignBaseAttack()
 
 	if (!minBloodHero)
 		for (auto x : myCon->friendlyUnits(filter))
-			if (x->isHero() && x->hp < 100)
+			if (x->isHero() && x->hp < 100 && x->hp > 0)
 				minBloodHero = x;
 	myCon->baseAttack(minBloodHero);
 }
