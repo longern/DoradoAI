@@ -359,7 +359,7 @@ public:
 	{
 		this->worth = 0;
 		if (target->findBuff("Reviving") != NULL || target->hp <= 0
-			|| dis2(worker->pos, target->pos) <= worker->range)
+			|| dis2(worker->pos, target->pos) > worker->range)
 			return this->worth = strategyDisabled;
 		return this->worth;
 	}
@@ -519,7 +519,7 @@ public:
 		if (enemyTotalAtk < worker->hp)
 			return worth;
 		std::vector<Pos> homePath;
-		pos = Pos(worker->pos.x - 6, worker->pos.y - 6);
+		pos = campRotate(worker->pos.x - 6, worker->pos.y - 6);
 		findShortestPath(AIController::ins()->getMap(), pos, myCon->getMilitaryBase()->pos, homePath);
 		if (homePath.back() == myCon->getMilitaryBase()->pos)
 			this->worth += 2000;
