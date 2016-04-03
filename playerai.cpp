@@ -744,8 +744,9 @@ public:
 		if (Memory::ins()->badSituation || !hasFriendInCenter)
 			this->worth += miningArg;
 
-		if(target == campRotate(MINE_POS[1]))
+		if (target == (myCon->camp() ? MINE_POS[4] : MINE_POS[1]))
 			this->worth += 50;
+
 		return this->worth;
 	}
 
