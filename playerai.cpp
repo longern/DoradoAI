@@ -8,6 +8,7 @@
 #include <set>
 #include <memory>
 #include <queue>
+#include <map>
 #include <cmath>
 using namespace std;
 
@@ -67,6 +68,7 @@ private:
 	static Memory *_instance;
 public:
 	bool badSituation;
+	std::map<PUnit *, std::string> lastStrategy;
 };
 
 Memory *Memory::_instance = nullptr;
@@ -519,7 +521,10 @@ public:
 		if (enemyTotalAtk < worker->hp)
 			return worth;
 		std::vector<Pos> homePath;
-		pos = campRotate(worker->pos.x - 6, worker->pos.y - 6);
+		if(myCon->camp())
+			pos = Pos(worker->pos.x + 6, worker->pos.y + 6);
+		else
+			pos = Pos(worker->pos.x - 6, worker->pos.y - 6);
 		findShortestPath(AIController::ins()->getMap(), pos, myCon->getMilitaryBase()->pos, homePath);
 		if (homePath.back() == myCon->getMilitaryBase()->pos)
 			this->worth += 2000;
@@ -683,7 +688,7 @@ public:
 			this->worth += 300;
 		return this->worth;
 	}
-	void work() { myCon->callBackHero(worker, campRotate(15, 8)); }
+	void work() { myCon->callBackHero(worker, campRotate(15, 9)); }
 };
 
 class GoCenterMining : public Strategy //²É¿óµÄ²ßÂÔ
@@ -705,6 +710,8 @@ public:
 
 		this->worth -= int(dis(worker->pos, MINE_POS[0]) / 5);
 		this->worth += centerMineArg;
+		if (myCon->getMilitaryBase()->hp < 1500)
+			worth += 50;
 		return this->worth;
 	}
 
@@ -788,6 +795,8 @@ public:
 			else
 			{
 				this->worth += 200;
+				if(AIController::ins()->myBase->hp < 1500 && Memory::ins()->lastStrategy[worker] != "PushBase")
+					this->worth -= 100;
 				for (auto x : AIController::ins()->strategyPool())
 					if (x->getWorker() == worker && x->getName() == "GoHome")
 						if (x->getWorth() >= goBackHomeArg)
@@ -912,7 +921,7 @@ void AIController::assignBaseAttack()
 	UnitFilter filter;
 	filter.setAreaFilter(new Circle(myBase->pos, MILITARY_BASE_RANGE));
 	for (auto x : myCon->enemyUnits(filter))
-		if (!minBloodHero || x->hp < minBloodHero->hp)
+		if (!minBloodHero || x->hp < minBloodHero->hp && x->hp > 0)
 			minBloodHero = x;
 
 	if (!minBloodHero)
@@ -958,6 +967,7 @@ void AIController::action()
 			allStrategy.push_back(new GoMining(myHeros[i], MINE_POS[j]));
 		allStrategy.push_back(new PushBase(myHeros[i]));
 		AIHeroList[i]->chooseStrategy(allStrategy);
+		Memory::ins()->lastStrategy[AIHeroList[i]->getHero()] = AIHeroList[i]->getStrategy()->getName();
 	}
 	for (size_t i = 0; i < AIHeroList.size(); ++i)
 	{
