@@ -30,7 +30,8 @@ public:
 
 	static AIController *ins() { return instance; }
 
-	Console *console() { return _console; }
+	Console *console() const { return _console; }
+	const PMap &getMap() const { return *map; }
 
 	const std::vector<shared_ptr<AIHero>> &decisionPool() { return AIHeroList; }
 	const std::vector<Strategy *> &strategyPool() { return allStrategy; }
@@ -92,6 +93,8 @@ namespace lsy
 	static const std::string &strMaster = HERO_NAME[1];
 	static const std::string &strBerserker = HERO_NAME[2];
 	static const std::string &strScouter = HERO_NAME[3];
+
+	static const std::vector<Pos> DISABLE_POINTS = { Pos(31, 58), Pos(32, 57), Pos(33, 56), Pos(33, 55) };
 }
 
 using namespace lsy;
@@ -477,12 +480,17 @@ public:
 		this->worth = 0;
 		if (!worker->canUseSkill("HammerAttack"))
 			return this->worth = strategyDisabled;
-		if (target->findBuff("Reviving"))
+		if (dis2(worker->pos, target->pos) > HAMMERATTACK_RANGE || target->findBuff("Reviving"))
 			return this->worth;
+
+		this->worth += int(((double)target->max_hp / target->hp) * attackArg);
+		if (target->findBuff("Dizzy") != NULL)
+			this->worth -= hammerDizzy;
 		return this->worth;
 	}
 
-	void work() {
+	void work()
+	{
 		myCon->selectUnit(worker);
 		myCon->useSkill("HammerAttack", target);
 	}
@@ -490,6 +498,43 @@ public:
 	void setTarget(PUnit* target) { this->target = target; }
 private:
 	PUnit *target;
+};
+
+class UseBlink : public Strategy
+{
+public:
+	UseBlink(PUnit* worker) : Strategy(worker, "UseBlink") { }
+
+	int countWorth()
+	{
+		this->worth = 0;
+		if (!worker->canUseSkill("Blink"))
+			return this->worth = strategyDisabled;
+		int enemyTotalAtk = 0;
+		UnitFilter filter;
+		filter.setAreaFilter(new Circle(worker->pos, worker->view));
+		for (auto x : myCon->enemyUnits(filter))
+			if (dis2(worker->pos, x->pos) <= x->range)
+				enemyTotalAtk += x->atk;
+		if (enemyTotalAtk < worker->hp)
+			return worth;
+		std::vector<Pos> homePath;
+		pos = Pos(worker->pos.x - 6, worker->pos.y - 6);
+		findShortestPath(AIController::ins()->getMap(), pos, myCon->getMilitaryBase()->pos, homePath);
+		if (homePath.back() == myCon->getMilitaryBase()->pos)
+			this->worth += 2000;
+
+		return this->worth;
+	}
+
+	void work() {
+		myCon->selectUnit(worker);
+		myCon->useSkill("Blink", pos);
+	}
+
+	void setPos(PUnit* target) { this->pos = pos; }
+private:
+	Pos pos;
 };
 
 class UseSacrifice : public Strategy
@@ -504,6 +549,16 @@ public:
 			return this->worth = strategyDisabled;
 		if (target->findBuff("Reviving"))
 			return this->worth;
+		if (target->isWild())
+			this->worth -= 2000;
+		if (dis(worker->pos, target->pos) <= sqrt(worker->range) + sqrt(worker->speed) / 2)
+		{
+			this->worth += int(((double)target->max_hp / target->hp) * attackArg * 2);
+			if (dis2(worker->pos, target->pos) > worker->view)
+				this->worth -= outOfRangeArg * 2;
+			if (target->findBuff("Dizzy") != NULL)
+				this->worth += hammerDizzy;
+		}
 		return this->worth;
 	}
 
@@ -515,28 +570,6 @@ public:
 	void setTarget(PUnit* target) { this->target = target; }
 private:
 	PUnit *target;
-};
-
-class UseBlink : public Strategy
-{
-	UseBlink(PUnit* worker) : Strategy(worker, "UseBlink") { }
-
-	int countWorth()
-	{
-		this->worth = 0;
-		if (!worker->canUseSkill("Blink"))
-			return this->worth = strategyDisabled;
-		return this->worth;
-	}
-
-	void work() {
-		myCon->selectUnit(worker);
-		myCon->useSkill("Blink", pos);
-	}
-
-	void setPos(PUnit* target) { this->pos = pos; }
-private:
-	Pos pos;
 };
 
 class PlugEye : public Strategy  // 放眼策略
@@ -590,86 +623,6 @@ public:
 	}
 
 private:
-	Pos targetPos;
-};
-
-class UseSkill : public Strategy  // 对某个单位释放技能的策略
-{
-public:
-	UseSkill(PUnit* worker, PUnit* target) : Strategy(worker, "UseSkill") { setTarget(target); }
-public:
-	void sklHammerAttack()
-	{
-		if (dis2(worker->pos, target->pos) <= supportRange)
-		{
-			if (target->hp <= 0)
-				return;
-			this->worth += int(((double)target->max_hp / target->hp) * attackArg);
-			if (dis2(worker->pos, target->pos) > HAMMERATTACK_RANGE)
-				this->worth -= outOfRangeArg;
-			if (target->findBuff("Dizzy") != NULL)
-				this->worth -= hammerDizzy;
-		}
-	}
-
-	void sklSacrifice()
-	{
-		if (target->isWild())
-			this->worth -= 2000;
-		if (dis(worker->pos, target->pos) <= sqrt(worker->range) + sqrt(worker->speed) / 2)
-		{
-			this->worth += int(((double)target->max_hp / target->hp) * attackArg * 2);
-			if (dis2(worker->pos, target->pos) > worker->view)
-				this->worth -= outOfRangeArg * 2;
-			if (target->findBuff("Dizzy") != NULL)
-				this->worth += hammerDizzy;
-		}
-	}
-
-	int countWorth()
-	{
-		this->worth = 0;
-		if (target->hp <= 0)
-			return this->worth;
-		myCon->selectUnit(worker);
-		vector<PSkill*> skillList = myCon->getSkills();
-		for (size_t i = 0; i < skillList.size(); ++i)
-			if (isActiveSkill(skillList[i]))
-			{
-				if (!worker->canUseSkill(skillList[i]))
-				{
-					this->worth = strategyDisabled;
-					break;
-				}
-				if (isEqual(skillList[i]->name, "HammerAttack"))
-					sklHammerAttack();
-				else if (isEqual(skillList[i]->name, "Sacrifice"))
-					sklSacrifice();
-				break;
-			}
-		return this->worth;
-	}
-
-	void work()
-	{
-		myCon->selectUnit(worker);
-		vector<PSkill*> skillList = myCon->getSkills();
-		for (size_t i = 0; i < skillList.size(); ++i)
-			if (isActiveSkill(skillList[i]))
-			{
-				if (isEqual(skillList[i]->name, "HammerAttack"))
-					myCon->useSkill(skillList[i], target);
-				else if (isEqual(skillList[i]->name, "Sacrifice"))
-					myCon->useSkill(skillList[i], NULL);
-				else
-					myCon->useSkill(skillList[i], targetPos);
-				break;
-			}
-	}
-
-	void setTarget(PUnit* target) { this->target = target; }
-private:
-	PUnit* target;
 	Pos targetPos;
 };
 
@@ -770,6 +723,9 @@ public:
 	int countWorth()
 	{
 		this->worth = 0;
+		if (myCon->round() <= 30)
+			return worth;
+
 		UnitFilter filter;
 		filter.setAreaFilter(new Circle(MINE_POS[0], 144));
 
@@ -982,9 +938,14 @@ void AIController::action()
 
 		if(myHeros[i]->name == strScouter)
 			allStrategy.push_back(new PlugEye(myHeros[i]));
-		else
+		else if(myHeros[i]->name == strMaster)
+			allStrategy.push_back(new UseBlink(myHeros[i]));
+		else if(myHeros[i]->name == strHammerguard)
 			for (size_t j = 0; j < enemyHeros.size(); ++j)
-				allStrategy.push_back(new UseSkill(myHeros[i], enemyHeros[j]));
+				allStrategy.push_back(new UseHammerAttack(myHeros[i], enemyHeros[j]));
+		else if(myHeros[i]->name == strBerserker)
+			for (size_t j = 0; j < enemyHeros.size(); ++j)
+				allStrategy.push_back(new UseSacrifice(myHeros[i], enemyHeros[j]));
 		for (size_t j = 0; j < enemyHeros.size(); ++j)
 			allStrategy.push_back(new Attack(myHeros[i], enemyHeros[j]));
 		for (size_t j = 0; j < enemyHeros.size(); ++j)
