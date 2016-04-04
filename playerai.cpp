@@ -603,7 +603,7 @@ public:
 		if (fHeroNearCenter >= 2)
 		{
 			targetPos = campRotate(99, 84);
-			this->worth += 100;
+			this->worth += 190;
 		}
 	}
 
@@ -622,7 +622,7 @@ public:
 	{
 		myCon->selectUnit(worker);
 		if (dis2(worker->pos, targetPos) <= 25)
-			myCon->useSkill(myCon->getSkill("SetObserver", worker), targetPos);
+			myCon->useSkill(myCon->getSkill("SetObserver", worker), myCon->randPosInArea(targetPos, 1));
 		else
 			myCon->move(targetPos);
 	}
@@ -631,7 +631,7 @@ private:
 	Pos targetPos;
 };
 
-class GoBackHome : public Strategy //英雄步行回家的策略
+class GoBackHome : public Strategy  // 英雄步行回家的策略
 {
 public:
 	GoBackHome(PUnit* worker) : Strategy(worker, "GoHome") { }
@@ -656,30 +656,37 @@ public:
 	}
 };
 
-class CallBackHome : public Strategy //召回英雄的策略
+class CallBackHome : public Strategy  // 召回英雄的策略
 {
 public:
-	CallBackHome(PUnit* worker) : Strategy(worker, "CallBack") { setWorker(worker); name = "CallBackHome"; }
+	CallBackHome(PUnit* worker) : Strategy(worker, "CallBack") { }
 public:
 	int countWorth()
 	{
 		this->worth = 0;
-		if (myCon->gold() - myCon->goldCostCurrentRound() < myCon->callBackCost(worker->level))
+		if (worker->findBuff("BeAttacked") || Memory::ins()->lastStrategy[worker] == "CallBack")
 			return worth = strategyDisabled;
 		if (dis2(worker->pos, AIController::ins()->myBase->pos) <= MILITARY_BASE_RANGE)
 			return this->worth;
 		int enemyAttackBase = 0;
 		int friendProtectBase = 0;
+		int callBackSpent = 0;
 		UnitFilter filter;
 		filter.setAreaFilter(new Circle(AIController::ins()->myBase->pos, MILITARY_BASE_RANGE));
 		for (auto x : myCon->enemyUnits(filter))
 			enemyAttackBase++;
 		for (auto x : myCon->friendlyUnits(filter))
-			if(x->isHero())
+			if (x->isHero())
 				friendProtectBase++;
 		for (auto x : AIController::ins()->decisionPool())
-			if (x->getStrategy() && x->getStrategy()->getName() == "CallBackHome")
+			if (x->getStrategy() && x->getStrategy()->getName() == "CallBack")
+			{
 				friendProtectBase++;
+				callBackSpent += myCon->callBackCost(x->getHero()->level);
+			}
+
+		if (myCon->gold() - callBackSpent < myCon->callBackCost(worker->level))
+			return worth = strategyDisabled;
 
 		if (enemyAttackBase > 0)
 			bePushedMyBase = myCon->round();
@@ -688,7 +695,7 @@ public:
 			this->worth += 300;
 		return this->worth;
 	}
-	void work() { myCon->callBackHero(worker, campRotate(15, 9)); }
+	void work() { myCon->callBackHero(worker, myCon->randPosInArea(campRotate(15, 9), 2)); }
 };
 
 class GoCenterMining : public Strategy //采矿的策略
@@ -743,13 +750,24 @@ public:
 		if (enemyCount > AIController::ins()->myHeros.size())
 			Memory::ins()->badSituation = true;
 
-		bool hasFriendInCenter = false;;
+		int friendsInCenter = 0;
 		for (auto x : myCon->friendlyUnits(filter))
 			if (x->isHero())
-				hasFriendInCenter = true;
+				friendsInCenter++;
 
-		if (Memory::ins()->badSituation || !hasFriendInCenter)
+		if (Memory::ins()->badSituation || friendsInCenter == 0)
 			this->worth += miningArg;
+
+		if (target == (myCon->camp() ? MINE_POS[1] : MINE_POS[4]))
+		{
+			enemyCount = 0;
+			filter.setAreaFilter(new Circle(target, 256), "w");
+			for (auto x : myCon->enemyUnits(filter))
+				if (x->isHero())
+					++enemyCount;
+			if (enemyCount >= 1 && enemyCount < friendsInCenter)
+				this->worth = 175;
+		}
 
 		if (target == (myCon->camp() ? MINE_POS[4] : MINE_POS[1]))
 			this->worth += 50;
@@ -820,7 +838,8 @@ public:
 				myCon->move(campRotate(116, 46));
 			else if(friendHeroCount >= HERO_LIMIT - 1
 				|| worker->pos.y > 120
-				|| enemiesInRange(AIController::ins()->myBase) > 0)
+				|| enemiesInRange(AIController::ins()->myBase) > 0
+				|| myCon->round() >= 750)
 				myCon->move(MILITARY_BASE_POS[1 - myCon->camp()]);
 			else
 				myCon->move(campRotate(138, 115));
