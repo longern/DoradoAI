@@ -59,16 +59,33 @@ class Memory
 {
 public:
 	static Memory *ins() { if (_instance) return _instance; else return _instance = new Memory; }
+	static Memory *updateMemory()
+	{
+		if (AIController::ins()->enemyBase)
+		{
+			ins()->enemyBaseLastHp = AIController::ins()->enemyBase->hp;
+			ins()->enemyBaseLastSeen = myCon->round();
+		}
+	}
 private:
 	Memory()
 	{
 		srand((unsigned int)time(nullptr));
 		badSituation = false;
+		int enemyBaseLastHp = 3000;
+		int enemyBaseLastSeen = 0;
+		catchJungleRound = 1000000000;
 	}
 	static Memory *_instance;
 public:
 	bool badSituation;
 	std::map<PUnit *, std::string> lastStrategy;
+	int enemyBaseLastHp;
+	int enemyBaseLastSeen;
+	int catchJungleRound;
+
+public:
+	int currentEnemyBaseHp() { return min(2 * enemyBaseLastSeen + enemyBaseLastHp, 3000); }
 };
 
 Memory *Memory::_instance = nullptr;
@@ -152,7 +169,7 @@ int enemiesInRange(PUnit *worker)
 {
 	int res = 0;
 	UnitFilter filter;
-	filter.setAreaFilter(new Circle(worker->pos, worker->view));
+	filter.setAreaFilter(new Circle(worker->pos, 256));
 	for (auto x : myCon->enemyUnits(filter))
 		if (x->isHero())
 			++res;
@@ -605,9 +622,9 @@ public:
 			targetPos = campRotate(99, 84);
 			this->worth += 190;
 		}
-		if(dis2(worker->pos, Pos(138, 115)) <= 9)
+		if(dis2(worker->pos, Pos(138, 115)) <= 100)
 		{
-			targetPos = myCon->randPosInArea(campRotate(worker->pos.x, worker->pos.y + 3), 4);
+			targetPos = myCon->randPosInArea(campRotate(138, 125), 4);
 			this->worth += 205;
 		}
 	}
@@ -766,17 +783,21 @@ public:
 		if (target == (myCon->camp() ? MINE_POS[1] : MINE_POS[4]))
 		{
 			enemyCount = 0;
-			filter.setAreaFilter(new Circle(target, 256), "w");
+			filter.setAreaFilter(new Circle(target, 324), "w");
 			for (auto x : myCon->enemyUnits(filter))
 				if (x->isHero())
 					++enemyCount;
 			UnitFilter bigFilter;
-			bigFilter.setAreaFilter(new Circle(MINE_POS[0], 900));
+			bigFilter.setAreaFilter(new Circle(MINE_POS[0], 441));
 			friendsInCenter = 0;
 			for (auto x : myCon->friendlyUnits(bigFilter))
 				if (x->isHero())
 					friendsInCenter++;
-			if (enemyCount >= 1 && enemyCount < friendsInCenter)
+			if (enemyCount >= 1 && enemyCount < friendsInCenter && Memory::ins()->catchJungleRound > 1000)
+				Memory::ins()->catchJungleRound = myCon->round();
+			if (enemyCount == 0 || myCon->round() - Memory::ins()->catchJungleRound > 15)
+				Memory::ins()->catchJungleRound = 1000000000;
+			if(Memory::ins()->catchJungleRound <= 1000)
 				this->worth = 175;
 		}
 
@@ -787,8 +808,11 @@ public:
 	}
 
 	void work() {
-		myCon->selectUnit(worker);
-		myCon->move(target);
+		if (worker->name != strScouter || myCon->round() - Memory::ins()->catchJungleRound >= 6)
+		{
+			myCon->selectUnit(worker);
+			myCon->move(target);
+		}
 	}
 	void setTarget(Pos target) { this->target = target; }
 	Pos getTarget() { return target; }
@@ -818,19 +842,33 @@ public:
 		this->worth = 0;
 		/*if (!bePushedMyBase)
 			return this->worth;*/
-		if (AIController::ins()->myHeros.size() >= HERO_LIMIT - 1)
-			if (AIController::ins()->enemyBase && dis2(AIController::ins()->enemyBase->pos, worker->pos) <= 900)
-				this->worth += 10000;
-			else
-			{
+		if (AIController::ins()->myHeros.size() < HERO_LIMIT - 1)
+			return this->worth;
+
+		bool inBaseRange = false;
+		for (auto x : AIController::ins()->myHeros)
+			if (dis2(x->pos, campRotate(MILITARY_BASE_POS[1])) <= 144)
+				inBaseRange = true;
+		if (inBaseRange && dis2(campRotate(MILITARY_BASE_POS[1]), worker->pos) <= 625)
+			this->worth += 10000;
+		else
+		{
+			int enemyByBaseCount = 0;
+			for (auto x : AIController::ins()->enemyHeros)
+				if (dis2(x->pos, campRotate(MILITARY_BASE_POS[1])) <= 625)
+					enemyByBaseCount++;
+			if (enemyByBaseCount >= 3)
+				return worth;
+			if(enemiesInRange(worker) <= 1)
 				this->worth += 200;
-				if(AIController::ins()->myBase->hp < 1500 && Memory::ins()->lastStrategy[worker] != "PushBase")
-					this->worth -= 100;
-				for (auto x : AIController::ins()->strategyPool())
-					if (x->getWorker() == worker && x->getName() == "GoHome")
-						if (x->getWorth() >= goBackHomeArg)
-							this->worth += 150;
-			}
+			if (AIController::ins()->myBase->hp < 1500 && Memory::ins()->lastStrategy[worker] != "PushBase")
+				this->worth -= 100;
+			for (auto x : AIController::ins()->strategyPool())
+				if (x->getWorker() == worker && x->getName() == "GoHome")
+					if (x->getWorth() >= goBackHomeArg)
+						this->worth += 150;
+		}
+
 		return this->worth;
 	}
 
@@ -849,7 +887,7 @@ public:
 			if(campRotate(worker->pos).x <= 108 && campRotate(worker->pos).y <= 65)
 				myCon->move(campRotate(116, 46));
 			else if(friendHeroCount >= HERO_LIMIT - 1
-				|| worker->pos.y > 120
+				|| worker->pos.y > 126
 				|| enemiesInRange(AIController::ins()->myBase) > 0
 				|| myCon->round() >= 750)
 				myCon->move(MILITARY_BASE_POS[1 - myCon->camp()]);
@@ -1012,8 +1050,8 @@ void AIController::action()
 /****************************** Entry Function **********************************/
 void player_ai(const PMap &map, const PPlayerInfo &info, PCommand &cmd)
 {
-	Memory::ins();
 	AIController controller(map, info, cmd);
+	Memory::updateMemory();
 
 	if (info.round == 0)
 	{
