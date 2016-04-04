@@ -605,6 +605,11 @@ public:
 			targetPos = campRotate(99, 84);
 			this->worth += 190;
 		}
+		if(dis2(worker->pos, Pos(138, 115)) <= 9)
+		{
+			targetPos = myCon->randPosInArea(campRotate(worker->pos.x, worker->pos.y + 3), 4);
+			this->worth += 205;
+		}
 	}
 
 	int countWorth()
@@ -622,7 +627,7 @@ public:
 	{
 		myCon->selectUnit(worker);
 		if (dis2(worker->pos, targetPos) <= 25)
-			myCon->useSkill(myCon->getSkill("SetObserver", worker), myCon->randPosInArea(targetPos, 1));
+			myCon->useSkill(myCon->getSkill("SetObserver", worker), myCon->randPosInArea(targetPos, 4));
 		else
 			myCon->move(targetPos);
 	}
@@ -765,6 +770,12 @@ public:
 			for (auto x : myCon->enemyUnits(filter))
 				if (x->isHero())
 					++enemyCount;
+			UnitFilter bigFilter;
+			bigFilter.setAreaFilter(new Circle(MINE_POS[0], 900));
+			friendsInCenter = 0;
+			for (auto x : myCon->friendlyUnits(bigFilter))
+				if (x->isHero())
+					friendsInCenter++;
 			if (enemyCount >= 1 && enemyCount < friendsInCenter)
 				this->worth = 175;
 		}
@@ -822,6 +833,7 @@ public:
 			}
 		return this->worth;
 	}
+
 	void work()
 	{
 		myCon->selectUnit(worker);
