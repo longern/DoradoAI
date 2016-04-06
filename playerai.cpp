@@ -181,7 +181,7 @@ int enemiesInRange(PUnit *worker)
 /******************************** Path Function *********************************/
 void findPath(const PMap &map, Pos start, Pos dest, const vector<Pos> &blocks, vector<Pos> &path)
 {
-	if (dis2(start, dest) >= 3600)
+	if (dis2(start, dest) >= 1600)
 	{
 		findShortestPath(map, start, dest, blocks, path);
 		return;
