@@ -160,7 +160,7 @@ int friendsInRange(PUnit *worker)
 	UnitFilter filter;
 	filter.setAreaFilter(new Circle(worker->pos, worker->view));
 	for (auto x : myCon->friendlyUnits(filter))
-		if(x->isHero() || x->isBase())
+		if (x->isHero() || x->isBase())
 			++res;
 	return res;
 }
@@ -181,6 +181,12 @@ int enemiesInRange(PUnit *worker)
 /******************************** Path Function *********************************/
 void findPath(const PMap &map, Pos start, Pos dest, const vector<Pos> &blocks, vector<Pos> &path)
 {
+	if (dis2(start, dest) >= 3600)
+	{
+		findShortestPath(map, start, dest, blocks, path);
+		return;
+	}
+
 	struct Node {
 		int x, y;
 		int level;
@@ -340,7 +346,7 @@ public:
 		}
 	}
 
-	void action() { if(mStrategy) mStrategy->work(); } //进行当前的最优策略
+	void action() { if (mStrategy) mStrategy->work(); } //进行当前的最优策略
 	PUnit *getHero() { return mHero; }
 	Strategy *getStrategy() { return mStrategy; }
 private:
@@ -453,7 +459,11 @@ public:
 				this->worth -= outOfRangeArg;
 			}
 			if (target->isWild())
+			{
 				this->worth -= monsterAvoid;
+				if (friendsInRange(worker) <= 1)
+					this->worth -= 1000;
+			}
 		}
 		return this->worth;
 	}
@@ -538,7 +548,7 @@ public:
 		if (enemyTotalAtk < worker->hp)
 			return worth;
 		std::vector<Pos> homePath;
-		if(myCon->camp())
+		if (myCon->camp())
 			pos = Pos(worker->pos.x + 6, worker->pos.y + 6);
 		else
 			pos = Pos(worker->pos.x - 6, worker->pos.y - 6);
@@ -622,7 +632,7 @@ public:
 			targetPos = campRotate(99, 84);
 			this->worth += 190;
 		}
-		if(dis2(worker->pos, Pos(138, 115)) <= 100)
+		if (dis2(worker->pos, campRotate(138, 115)) <= 100)
 		{
 			targetPos = myCon->randPosInArea(campRotate(138, 125), 4);
 			this->worth += 205;
@@ -797,11 +807,12 @@ public:
 				Memory::ins()->catchJungleRound = myCon->round();
 			if (enemyCount == 0 || myCon->round() - Memory::ins()->catchJungleRound > 15)
 				Memory::ins()->catchJungleRound = 1000000000;
-			if(Memory::ins()->catchJungleRound <= 1000)
+			if (Memory::ins()->catchJungleRound <= 1000)
 				this->worth = 175;
+			else
+				this->worth = 0;
 		}
-
-		if (target == (myCon->camp() ? MINE_POS[4] : MINE_POS[1]))
+		else if (target == (myCon->camp() ? MINE_POS[4] : MINE_POS[1]))
 			this->worth += 50;
 
 		return this->worth;
@@ -841,7 +852,7 @@ public:
 	{
 		this->worth = 0;
 		/*if (!bePushedMyBase)
-			return this->worth;*/
+		return this->worth;*/
 		if (AIController::ins()->myHeros.size() < HERO_LIMIT - 1)
 			return this->worth;
 
@@ -859,7 +870,7 @@ public:
 					enemyByBaseCount++;
 			if (enemyByBaseCount >= 3)
 				return worth;
-			if(enemiesInRange(worker) <= 1)
+			if (enemiesInRange(worker) <= 1)
 				this->worth += 200;
 			if (AIController::ins()->myBase->hp < 1500 && Memory::ins()->lastStrategy[worker] != "PushBase")
 				this->worth -= 100;
@@ -884,9 +895,9 @@ public:
 				if (dis2(x->pos, worker->pos) <= worker->range || campRotate(x->pos).y >= 110 || x->findBuff("Reviving"))
 					friendHeroCount++;
 
-			if(campRotate(worker->pos).x <= 108 && campRotate(worker->pos).y <= 65)
+			if (campRotate(worker->pos).x <= 108 && campRotate(worker->pos).y <= 65)
 				myCon->move(campRotate(116, 46));
-			else if(friendHeroCount >= HERO_LIMIT - 1
+			else if (friendHeroCount >= HERO_LIMIT - 1
 				|| worker->pos.y > 126
 				|| enemiesInRange(AIController::ins()->myBase) > 0
 				|| myCon->round() >= 750)
@@ -904,7 +915,7 @@ AIController::AIController(const PMap &map, const PPlayerInfo &info, PCommand &c
 {
 	instance = this;
 	_console = new Console(map, info, cmd);
-	//_console->changeShortestPathFunc(findPath);
+	_console->changeShortestPathFunc(findPath);
 
 	this->map = &map;
 	this->info = &info;
@@ -957,7 +968,7 @@ void AIController::levelupHero()
 			heroCount++;
 
 	for (size_t i = 0; i < heroToLevelUp.size(); ++i)
-		if(heroCount == HERO_LIMIT
+		if (heroCount == HERO_LIMIT
 			|| heroToLevelUp[i]->level < 2 && heroToLevelUp[i]->findBuff("Reviving") == nullptr)
 			myCon->buyHeroLevel(heroToLevelUp[i]);
 }
@@ -1015,14 +1026,14 @@ void AIController::action()
 			continue;
 		}
 
-		if(myHeros[i]->name == strScouter)
+		if (myHeros[i]->name == strScouter)
 			allStrategy.push_back(new PlugEye(myHeros[i]));
-		else if(myHeros[i]->name == strMaster)
+		else if (myHeros[i]->name == strMaster)
 			allStrategy.push_back(new UseBlink(myHeros[i]));
-		else if(myHeros[i]->name == strHammerguard)
+		else if (myHeros[i]->name == strHammerguard)
 			for (size_t j = 0; j < enemyHeros.size(); ++j)
 				allStrategy.push_back(new UseHammerAttack(myHeros[i], enemyHeros[j]));
-		else if(myHeros[i]->name == strBerserker)
+		else if (myHeros[i]->name == strBerserker)
 			for (size_t j = 0; j < enemyHeros.size(); ++j)
 				allStrategy.push_back(new UseSacrifice(myHeros[i], enemyHeros[j]));
 		for (size_t j = 0; j < enemyHeros.size(); ++j)
