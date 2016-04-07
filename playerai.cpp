@@ -383,7 +383,8 @@ public:
 	int countWorth()
 	{
 		this->worth = 0;
-		if (target->findBuff("Reviving") != NULL || target->hp <= 0
+		if (!worker->canUseSkill("Attack")
+			|| target->findBuff("Reviving") != NULL || target->hp <= 0
 			|| dis2(worker->pos, target->pos) > worker->range)
 			return this->worth = strategyDisabled;
 		return this->worth;
@@ -915,7 +916,7 @@ AIController::AIController(const PMap &map, const PPlayerInfo &info, PCommand &c
 {
 	instance = this;
 	_console = new Console(map, info, cmd);
-	_console->changeShortestPathFunc(findPath);
+	//_console->changeShortestPathFunc(findPath);
 
 	this->map = &map;
 	this->info = &info;
