@@ -733,7 +733,7 @@ public:
 	void work() { myCon->callBackHero(worker, myCon->randPosInArea(campRotate(15, 9), 2)); }
 };
 
-class GoCenterMining : public Strategy //采矿的策略
+class GoCenterMining : public Strategy  // 采中心矿的策略
 {
 public:
 	GoCenterMining(PUnit* worker) : Strategy(worker, "GoCenMine") { }
