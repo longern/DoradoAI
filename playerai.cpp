@@ -743,9 +743,9 @@ public:
 			return this->worth = 100000000;
 
 		const auto &currentDecisionPool = AIController::ins()->decisionPool();
-		for (size_t i = 0; i < currentDecisionPool.size(); ++i)
-			if (currentDecisionPool[i]->getStrategy() != NULL)
-				if (currentDecisionPool[i]->getStrategy()->getName() == "GoCenterMining")
+		for (auto x : currentDecisionPool)
+			if (x->getStrategy() != NULL)
+				if (x->getStrategy()->getName() == "GoCenterMining")
 					this->worth -= sameMineArg;
 
 		this->worth -= int(dis(worker->pos, MINE_POS[0]) / 5);
@@ -968,10 +968,10 @@ void AIController::levelupHero()
 		if (x->isHero())
 			heroCount++;
 
-	for (size_t i = 0; i < heroToLevelUp.size(); ++i)
+	for (auto x : heroToLevelUp)
 		if (heroCount == HERO_LIMIT
-			|| heroToLevelUp[i]->level < 2 && heroToLevelUp[i]->findBuff("Reviving") == nullptr)
-			myCon->buyHeroLevel(heroToLevelUp[i]);
+			|| x->level < 2 && !x->findBuff("Reviving"))
+			myCon->buyHeroLevel(x);
 }
 
 void AIController::buyNewHero()
