@@ -72,8 +72,9 @@ private:
 	{
 		srand((unsigned int)time(nullptr));
 		badSituation = false;
-		int enemyBaseLastHp = 3000;
-		int enemyBaseLastSeen = 0;
+		enemyBaseLastHp = 3000;
+		enemyBaseLastSeen = 0;
+		lastRoundEnemyProtBase = 1000000000;
 		catchJungleRound = 1000000000;
 	}
 	static Memory *_instance;
@@ -82,6 +83,7 @@ public:
 	std::map<PUnit *, std::string> lastStrategy;
 	int enemyBaseLastHp;
 	int enemyBaseLastSeen;
+	int lastRoundEnemyProtBase;
 	int catchJungleRound;
 
 public:
@@ -870,6 +872,8 @@ public:
 				if (dis2(x->pos, campRotate(MILITARY_BASE_POS[1])) <= 625)
 					enemyByBaseCount++;
 			if (enemyByBaseCount >= 3)
+				Memory::ins()->lastRoundEnemyProtBase = myCon->round();
+			if(myCon->round() - Memory::ins()->lastRoundEnemyProtBase <= 30)
 				return worth;
 			if (enemiesInRange(worker) <= 1)
 				this->worth += 200;
