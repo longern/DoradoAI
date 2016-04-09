@@ -65,7 +65,7 @@ public:
 		{
 			ins()->enemyBaseLastHp = AIController::ins()->enemyBase->hp;
 			ins()->enemyBaseLastSeen = myCon->round();
-			
+
 			UnitFilter filter;
 
 			int enemyCount = 0;
@@ -197,11 +197,11 @@ int friendsInRange(PUnit *worker)
 	return res;
 }
 
-int enemiesInRange(PUnit *worker)
+int enemiesInRange(PUnit *worker, int range2 = 256)
 {
 	int res = 0;
 	UnitFilter filter;
-	filter.setAreaFilter(new Circle(worker->pos, 256));
+	filter.setAreaFilter(new Circle(worker->pos, range2));
 	for (auto x : myCon->enemyUnits(filter))
 		if (x->isHero())
 			++res;
@@ -720,7 +720,7 @@ public:
 			&& friendsInRange(worker) + 1 < enemiesInRange(worker))
 		{
 			this->worth = goBackHomeArg;
-			if(friendsInRange(worker) + 3 < enemiesInRange(worker))
+			if (friendsInRange(worker) + 3 < enemiesInRange(worker))
 				this->worth = goBackHomeArg;
 		}
 		return this->worth;
@@ -772,7 +772,11 @@ public:
 			this->worth += 300;
 		return this->worth;
 	}
-	void work() { myCon->callBackHero(worker, myCon->randPosInArea(campRotate(15, 9), 2)); }
+
+	void work()
+	{
+		myCon->callBackHero(worker, myCon->randPosInArea(campRotate(15, 9), 2));
+	}
 };
 
 class GoCenterMining : public Strategy  // 采中心矿的策略
@@ -879,12 +883,23 @@ public:
 	}
 
 	void work() {
-		if (worker->name != strScouter || myCon->round() - Memory::ins()->catchJungleRound >= 6)
+		if (worker->name == strScouter)
+		{
+			if (Memory::ins()->catchJungleRound > 1000
+				|| dis2(worker->pos, myCon->getMilitaryBase()->pos) <= 3600
+				|| myCon->round() - Memory::ins()->catchJungleRound >= 6)
+			{
+				myCon->selectUnit(worker);
+				myCon->move(target);
+			}
+		}
+		else
 		{
 			myCon->selectUnit(worker);
 			myCon->move(target);
 		}
 	}
+
 	void setTarget(Pos target) { this->target = target; }
 	Pos getTarget() { return target; }
 private:
@@ -1067,9 +1082,10 @@ void AIController::assignBaseAttack()
 			minBloodHero = x;
 
 	if (!minBloodHero)
-		for (auto x : myCon->friendlyUnits(filter))
-			if (x->isHero() && x->hp < 100 && x->hp > 0)
-				minBloodHero = x;
+		if (enemiesInRange(AIController::ins()->myBase) == 0)
+			for (auto x : myCon->friendlyUnits(filter))
+				if (x->isHero() && x->hp < 100 && x->hp > 0)
+					minBloodHero = x;
 	myCon->baseAttack(minBloodHero);
 }
 
