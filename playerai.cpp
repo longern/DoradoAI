@@ -65,6 +65,32 @@ public:
 		{
 			ins()->enemyBaseLastHp = AIController::ins()->enemyBase->hp;
 			ins()->enemyBaseLastSeen = myCon->round();
+			
+			UnitFilter filter;
+
+			int enemyCount = 0;
+			filter.setAreaFilter(new Circle(MINE_POS[0], 144), "w");
+			for (auto x : myCon->enemyUnits(filter))
+				if (x->isHero())
+					++enemyCount;
+			int friendCount = 0;
+			for (auto x : myCon->friendlyUnits(filter))
+				if (x->isHero())
+					++friendCount;
+			if (enemyCount > 2 && friendCount == 0)
+				Memory::ins()->lastRoundEnemyOccuCent = myCon->round();
+
+			enemyCount = 0;
+			filter.setAreaFilter(new Circle((myCon->camp() ? MINE_POS[4] : MINE_POS[1]), 324), "w");
+			for (auto x : myCon->enemyUnits(filter))
+				if (x->isHero())
+					++enemyCount;
+			friendCount = 0;
+			for (auto x : myCon->friendlyUnits(filter))
+				if (x->isHero())
+					++friendCount;
+			if (enemyCount > 3 && friendCount == 0)
+				Memory::ins()->lastRoundEnemyOccuMine1 = myCon->round();
 		}
 	}
 private:
@@ -75,6 +101,7 @@ private:
 		enemyBaseLastHp = 3000;
 		enemyBaseLastSeen = 0;
 		lastRoundEnemyOccuCent = 1000000000;
+		lastRoundEnemyOccuMine1 = 1000000000;
 		lastRoundEnemyProtBase = 1000000000;
 		catchJungleRound = 1000000000;
 	}
@@ -85,6 +112,7 @@ public:
 	int enemyBaseLastHp;
 	int enemyBaseLastSeen;
 	int lastRoundEnemyOccuCent;
+	int lastRoundEnemyOccuMine1;
 	int lastRoundEnemyProtBase;
 	int catchJungleRound;
 
@@ -692,6 +720,8 @@ public:
 			&& friendsInRange(worker) + 1 < enemiesInRange(worker))
 		{
 			this->worth = goBackHomeArg;
+			if(friendsInRange(worker) + 3 < enemiesInRange(worker))
+				this->worth = goBackHomeArg;
 		}
 		return this->worth;
 	}
@@ -783,14 +813,25 @@ public:
 public:
 	int countWorth()
 	{
+		UnitFilter filter;
+
 		this->worth = 0;
 		if (myCon->round() <= 30)
 			return worth;
 
-		UnitFilter filter;
+		int enemyCount = 0;
+		filter.setAreaFilter(new Circle((myCon->camp() ? MINE_POS[4] : MINE_POS[1]), 324), "w");
+		for (auto x : myCon->enemyUnits(filter))
+			if (x->isHero())
+				++enemyCount;
+		if (dis2(worker->pos, (myCon->camp() ? MINE_POS[4] : MINE_POS[1])) <= worker->view && enemyCount == 0)
+			Memory::ins()->lastRoundEnemyOccuMine1 = 1000000000;
+
+		if (Memory::ins()->lastRoundEnemyOccuMine1 <= 1000 && myCon->round() - Memory::ins()->lastRoundEnemyOccuMine1 >= 30)
+			return worth;
 
 		filter.setAreaFilter(new Circle(MINE_POS[0], 144));
-		int enemyCount = 0;
+		enemyCount = 0;
 		for (auto x : myCon->enemyUnits(filter))
 			if (x->isHero())
 				++enemyCount;
@@ -803,9 +844,7 @@ public:
 			if (x->isHero())
 				friendsInCenter++;
 
-		if (enemyCount > 2 && friendsInCenter == 0)
-			Memory::ins()->lastRoundEnemyOccuCent = myCon->round();
-		else if (dis2(worker->pos, MINE_POS[0]) <= worker->view && enemyCount == 0)
+		if (dis2(worker->pos, MINE_POS[0]) <= worker->view && enemyCount == 0)
 			Memory::ins()->lastRoundEnemyOccuCent = 1000000000;
 
 		if (Memory::ins()->badSituation || friendsInCenter == 0 && Memory::ins()->lastRoundEnemyOccuCent <= 1000)
