@@ -74,6 +74,7 @@ private:
 		badSituation = false;
 		enemyBaseLastHp = 3000;
 		enemyBaseLastSeen = 0;
+		lastRoundEnemyOccuCent = 1000000000;
 		lastRoundEnemyProtBase = 1000000000;
 		catchJungleRound = 1000000000;
 	}
@@ -83,6 +84,7 @@ public:
 	std::map<PUnit *, std::string> lastStrategy;
 	int enemyBaseLastHp;
 	int enemyBaseLastSeen;
+	int lastRoundEnemyOccuCent;
 	int lastRoundEnemyProtBase;
 	int catchJungleRound;
 
@@ -542,6 +544,16 @@ public:
 		this->worth = 0;
 		if (!worker->canUseSkill("Blink"))
 			return this->worth = strategyDisabled;
+
+		if (myCon->round() == 1)
+		{
+			if (myCon->camp())
+				pos = Pos(worker->pos.x - 6, worker->pos.y - 6);
+			else
+				pos = Pos(worker->pos.x + 6, worker->pos.y + 6);
+			this->worth += 100000001;
+		}
+
 		int enemyTotalAtk = 0;
 		UnitFilter filter;
 		filter.setAreaFilter(new Circle(worker->pos, worker->view));
@@ -776,8 +788,8 @@ public:
 			return worth;
 
 		UnitFilter filter;
-		filter.setAreaFilter(new Circle(MINE_POS[0], 144));
 
+		filter.setAreaFilter(new Circle(MINE_POS[0], 144));
 		int enemyCount = 0;
 		for (auto x : myCon->enemyUnits(filter))
 			if (x->isHero())
@@ -785,12 +797,18 @@ public:
 		if (enemyCount > AIController::ins()->myHeros.size())
 			Memory::ins()->badSituation = true;
 
+		filter.setAreaFilter(new Circle(MINE_POS[0], 144), "w");
 		int friendsInCenter = 0;
 		for (auto x : myCon->friendlyUnits(filter))
 			if (x->isHero())
 				friendsInCenter++;
 
-		if (Memory::ins()->badSituation || friendsInCenter == 0)
+		if (enemyCount > 2 && friendsInCenter == 0)
+			Memory::ins()->lastRoundEnemyOccuCent = myCon->round();
+		else if (dis2(worker->pos, MINE_POS[0]) <= worker->view && enemyCount == 0)
+			Memory::ins()->lastRoundEnemyOccuCent = 1000000000;
+
+		if (Memory::ins()->badSituation || friendsInCenter == 0 && Memory::ins()->lastRoundEnemyOccuCent <= 1000)
 			this->worth += miningArg;
 
 		if (target == (myCon->camp() ? MINE_POS[1] : MINE_POS[4]))
@@ -873,7 +891,7 @@ public:
 					enemyByBaseCount++;
 			if (enemyByBaseCount >= 3)
 				Memory::ins()->lastRoundEnemyProtBase = myCon->round();
-			if(myCon->round() - Memory::ins()->lastRoundEnemyProtBase <= 30)
+			if (Memory::ins()->lastRoundEnemyProtBase <= 1000 && myCon->round() - Memory::ins()->lastRoundEnemyProtBase <= 30)
 				return worth;
 			if (enemiesInRange(worker) <= 1)
 				this->worth += 200;
