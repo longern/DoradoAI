@@ -361,8 +361,8 @@ protected:
 class AIHero  // 对应每个英雄的策略决策
 {
 public:
-	AIHero(PUnit* newHero) { mHero = newHero; mStrategy = NULL; } //默认选择回家的策略
-	~AIHero() { if (mStrategy != NULL) delete mStrategy; }
+	AIHero(PUnit* newHero) { mHero = newHero; mStrategy = nullptr; } //默认选择回家的策略
+	~AIHero() { if (mStrategy != nullptr) delete mStrategy; }
 
 public:
 	void chooseStrategy(const vector<Strategy *> strats)
@@ -416,7 +416,7 @@ public:
 	{
 		this->worth = 0;
 		if (!worker->canUseSkill("Attack")
-			|| target->findBuff("Reviving") != NULL || target->hp <= 0
+			|| target->findBuff("Reviving") != nullptr || target->hp <= 0
 			|| dis2(worker->pos, target->pos) > worker->range)
 			return this->worth = strategyDisabled;
 		return this->worth;
@@ -440,7 +440,7 @@ public:
 	int countWorth()
 	{
 		this->worth = 0;
-		if (target->findBuff("Reviving") != NULL || target->hp <= 0
+		if (target->findBuff("Reviving") != nullptr || target->hp <= 0
 			|| dis2(worker->pos, target->pos) <= worker->range)
 			return this->worth = strategyDisabled;
 		return this->worth;
@@ -465,7 +465,7 @@ public:
 	int countWorth()
 	{
 		this->worth = 0;
-		if (target->findBuff("Reviving") != NULL || target->hp <= 0)
+		if (target->findBuff("Reviving") != nullptr || target->hp <= 0)
 			return this->worth = strategyDisabled;
 
 		if (dis2(worker->pos, target->pos) <= supportRange)
@@ -546,7 +546,7 @@ public:
 			return this->worth;
 
 		this->worth += int(((double)target->max_hp / target->hp) * attackArg);
-		if (target->findBuff("Dizzy") != NULL)
+		if (target->findBuff("Dizzy") != nullptr)
 			this->worth -= hammerDizzy;
 		return this->worth;
 	}
@@ -631,7 +631,7 @@ public:
 			this->worth += int(((double)target->max_hp / target->hp) * attackArg * 2);
 			if (dis2(worker->pos, target->pos) > worker->view)
 				this->worth -= outOfRangeArg * 2;
-			if (target->findBuff("Dizzy") != NULL)
+			if (target->findBuff("Dizzy") != nullptr)
 				this->worth += hammerDizzy;
 		}
 		return this->worth;
@@ -792,7 +792,7 @@ public:
 
 		const auto &currentDecisionPool = AIController::ins()->decisionPool();
 		for (auto x : currentDecisionPool)
-			if (x->getStrategy() != NULL)
+			if (x->getStrategy() != nullptr)
 				if (x->getStrategy()->getName() == "GoCenterMining")
 					this->worth -= sameMineArg;
 
@@ -977,7 +977,7 @@ public:
 			else if (friendHeroCount >= HERO_LIMIT - 1
 				|| worker->pos.y > 126
 				|| enemiesInRange(AIController::ins()->myBase) > 0
-				|| myCon->round() >= 750)
+				|| myCon->round() >= 950)
 				myCon->move(MILITARY_BASE_POS[1 - myCon->camp()]);
 			else
 				myCon->move(campRotate(138, 115));
@@ -1000,7 +1000,7 @@ AIController::AIController(const PMap &map, const PPlayerInfo &info, PCommand &c
 	myHeros.clear();
 	std::vector<PUnit*> myUnits = myCon->friendlyUnits();
 	std::vector<PUnit*> enemyUnits = myCon->enemyUnits();
-	enemyBase = NULL;
+	enemyBase = nullptr;
 	for (size_t i = 0; i < myUnits.size(); ++i)
 	{
 		if (isHero(myUnits[i]->name))
@@ -1045,14 +1045,14 @@ void AIController::levelupHero()
 			heroCount++;
 
 	for (auto x : heroToLevelUp)
-		if (heroCount == HERO_LIMIT
+		if (heroCount == HERO_LIMIT && myCon->gold() - myCon->levelUpCost(x->level) >= myCon->callBackCost(0)
 			|| x->level < 2 && !x->findBuff("Reviving"))
 			myCon->buyHeroLevel(x);
 }
 
 void AIController::buyNewHero()
 {
-	if (myCon->round() == 0)
+	if (myCon->round() == 0 || AIController::myHeros.size() == 0)
 	{
 		myCon->chooseHero(HERO_NAME[0], campRotate(8, 50));
 		myCon->chooseHero(HERO_NAME[1], campRotate(20, 50));
@@ -1074,7 +1074,7 @@ void AIController::buyNewHero()
 
 void AIController::assignBaseAttack()
 {
-	PUnit *minBloodHero = NULL;
+	PUnit *minBloodHero = nullptr;
 	UnitFilter filter;
 	filter.setAreaFilter(new Circle(myBase->pos, MILITARY_BASE_RANGE));
 	for (auto x : myCon->enemyUnits(filter))
