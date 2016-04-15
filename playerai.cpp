@@ -65,33 +65,33 @@ public:
 		{
 			ins()->enemyBaseLastHp = AIController::ins()->enemyBase->hp;
 			ins()->enemyBaseLastSeen = myCon->round();
-
-			UnitFilter filter;
-
-			int enemyCount = 0;
-			filter.setAreaFilter(new Circle(MINE_POS[0], 144), "w");
-			for (auto x : myCon->enemyUnits(filter))
-				if (x->isHero())
-					++enemyCount;
-			int friendCount = 0;
-			for (auto x : myCon->friendlyUnits(filter))
-				if (x->isHero())
-					++friendCount;
-			if (enemyCount > 2 && friendCount == 0)
-				Memory::ins()->lastRoundEnemyOccuCent = myCon->round();
-
-			enemyCount = 0;
-			filter.setAreaFilter(new Circle((myCon->camp() ? MINE_POS[4] : MINE_POS[1]), 324), "w");
-			for (auto x : myCon->enemyUnits(filter))
-				if (x->isHero())
-					++enemyCount;
-			friendCount = 0;
-			for (auto x : myCon->friendlyUnits(filter))
-				if (x->isHero())
-					++friendCount;
-			if (enemyCount > 3 && friendCount == 0)
-				Memory::ins()->lastRoundEnemyOccuMine1 = myCon->round();
 		}
+
+		UnitFilter filter;
+
+		int enemyCount = 0;
+		filter.setAreaFilter(new Circle(MINE_POS[0], 144), "w");
+		for (auto x : myCon->enemyUnits(filter))
+			if (x->isHero())
+				++enemyCount;
+		int friendCount = 0;
+		for (auto x : myCon->friendlyUnits(filter))
+			if (x->isHero())
+				++friendCount;
+		if (enemyCount > 2 && friendCount == 0)
+			Memory::ins()->lastRoundEnemyOccuCent = myCon->round();
+
+		enemyCount = 0;
+		filter.setAreaFilter(new Circle((myCon->camp() ? MINE_POS[4] : MINE_POS[1]), 324), "w");
+		for (auto x : myCon->enemyUnits(filter))
+			if (x->isHero())
+				++enemyCount;
+		friendCount = 0;
+		for (auto x : myCon->friendlyUnits(filter))
+			if (x->isHero())
+				++friendCount;
+		if (enemyCount > 3 && friendCount == 0)
+			Memory::ins()->lastRoundEnemyOccuMine1 = myCon->round();
 	}
 private:
 	Memory()
@@ -657,28 +657,31 @@ public:
 		this->worth = 0;
 		if (myCon->round() < 30)
 			return;
-		int fHeroNearCenter = 0;
-		UnitFilter filter;
-		filter.setAreaFilter(new Circle(MINE_POS[0], 225));
-		for (auto x : myCon->enemyUnits(filter))
-		{
-			if (x->isHero())
-				return;
-		}
-		for (auto x : AIController::ins()->myHeros)
-		{
-			if (x != worker && dis2(x->pos, MINE_POS[0]) < 144 && x->findBuff("BeAttacked") == nullptr)
-				fHeroNearCenter++;
-		}
-		if (fHeroNearCenter >= 2)
-		{
-			targetPos = campRotate(99, 84);
-			this->worth += 190;
-		}
 		if (dis2(worker->pos, campRotate(138, 115)) <= 100)
 		{
 			targetPos = myCon->randPosInArea(campRotate(138, 125), 4);
 			this->worth += 205;
+		}
+		else
+		{
+			int fHeroNearCenter = 0;
+			UnitFilter filter;
+			filter.setAreaFilter(new Circle(MINE_POS[0], 225));
+			for (auto x : myCon->enemyUnits(filter))
+			{
+				if (x->isHero())
+					return;
+			}
+			for (auto x : AIController::ins()->myHeros)
+			{
+				if (x != worker && dis2(x->pos, MINE_POS[0]) < 144 && x->findBuff("BeAttacked") == nullptr)
+					fHeroNearCenter++;
+			}
+			if (fHeroNearCenter >= 2)
+			{
+				targetPos = campRotate(99, 84);
+				this->worth += 190;
+			}
 		}
 	}
 
@@ -943,9 +946,9 @@ public:
 			for (auto x : AIController::ins()->enemyHeros)
 				if (dis2(x->pos, campRotate(MILITARY_BASE_POS[1])) <= 625)
 					enemyByBaseCount++;
-			if (enemyByBaseCount >= 3)
+			if (enemyByBaseCount >= 3 && !inBaseRange)
 				Memory::ins()->lastRoundEnemyProtBase = myCon->round();
-			if (Memory::ins()->lastRoundEnemyProtBase <= 1000 && myCon->round() - Memory::ins()->lastRoundEnemyProtBase <= 30)
+			if (Memory::ins()->lastRoundEnemyProtBase <= 1000 && myCon->round() - Memory::ins()->lastRoundEnemyProtBase <= 30 && Memory::ins()->currentEnemyBaseHp() >= 300)
 				return worth;
 			if (enemiesInRange(worker) <= 1)
 				this->worth += 200;
@@ -964,7 +967,12 @@ public:
 	{
 		myCon->selectUnit(worker);
 		if (AIController::ins()->enemyBase)
-			myCon->attack(AIController::ins()->enemyBase);
+		{
+			if (worker->name == strHammerguard && worker->canUseSkill("HammerAttack") && dis2(worker->pos, AIController::ins()->enemyBase->pos) <= 36)
+				myCon->useSkill("HammerAttack", AIController::ins()->enemyBase);
+			else
+				myCon->attack(AIController::ins()->enemyBase);
+		}
 		else
 		{
 			int friendHeroCount = 0;
