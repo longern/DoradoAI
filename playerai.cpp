@@ -964,8 +964,10 @@ public:
 			for (auto x : AIController::ins()->enemyHeros)
 				if (dis2(x->pos, campRotate(MILITARY_BASE_POS[1])) <= 625)
 					enemyByBaseCount++;
-			if (enemyByBaseCount >= 3 && !inBaseRange)
+			if (enemyByBaseCount >= 3 && (Memory::ins()->enemyBaseLastSeen > 1000 || myCon->round() - Memory::ins()->enemyBaseLastSeen >= 10))
 				Memory::ins()->lastRoundEnemyProtBase = myCon->round();
+			if (enemyByBaseCount >= 3 && Memory::ins()->lastStrategy[worker] == "PlugEye")
+				Memory::ins()->lastRoundEnemyProtBase = 1000;
 			if (Memory::ins()->lastRoundEnemyProtBase <= 1000 && myCon->round() - Memory::ins()->lastRoundEnemyProtBase <= 30 && Memory::ins()->currentEnemyBaseHp() >= 300)
 				return worth;
 			if (enemiesInRange(worker) <= 1)
