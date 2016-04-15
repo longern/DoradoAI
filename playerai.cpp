@@ -512,7 +512,7 @@ public:
 			if (target->isWild())
 			{
 				this->worth -= monsterAvoid;
-				if (friendsInRange(worker) <= 1)
+				if (friendsInRange(target) <= 1)
 					this->worth -= 1000;
 			}
 		}
@@ -692,7 +692,7 @@ public:
 			}
 			for (auto x : AIController::ins()->myHeros)
 			{
-				if (x != worker && dis2(x->pos, MINE_POS[0]) < 144 && x->findBuff("BeAttacked") == nullptr)
+				if (x != worker && dis2(x->pos, MINE_POS[0]) <= 144 && x->findBuff("BeAttacked") == nullptr)
 					fHeroNearCenter++;
 			}
 			if (fHeroNearCenter >= 2)
