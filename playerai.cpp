@@ -486,7 +486,7 @@ public:
 		if (target->findBuff("Reviving") != nullptr || target->hp <= 0)
 			return this->worth = strategyDisabled;
 
-		if (dis2(worker->pos, target->pos) <= supportRange)
+		if (dis2(worker->pos, target->pos) <= 121)
 		{
 			if (target->hp < 80 && dis2(worker->pos, target->pos) > worker->range && target->speed > worker->speed && !target->findBuff("Dizzy"))
 				this->worth += 230;
@@ -751,6 +751,8 @@ public:
 			if (friendsInRange(worker) + 3 < enemiesInRange(worker))
 				this->worth = goBackHomeArg;
 		}
+		if (AIController::ins()->myBase->hp < 1500)
+			this->worth = 201;
 		return this->worth;
 	}
 
@@ -983,7 +985,7 @@ public:
 				this->worth -= 100;
 			for (auto x : AIController::ins()->strategyPool())
 				if (x->getWorker() == worker && x->getName() == "GoHome")
-					if (x->getWorth() >= goBackHomeArg)
+					if (x->getWorth() >= goBackHomeArg && AIController::ins()->myBase->hp >= 1500)
 						this->worth += 150;
 		}
 
