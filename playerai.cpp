@@ -156,7 +156,7 @@ Pos campRotate(Pos p)
 		return p;
 }
 
-Pos getMineByCamp(int cid)  
+Pos getMineByCamp(int cid)
 {
 	// cid is the index of MINE_POS when in camp 0
 	// this function will convert the position when you in camp 1
@@ -751,6 +751,8 @@ public:
 			if (friendsInRange(worker) + 3 < enemiesInRange(worker))
 				this->worth = goBackHomeArg;
 		}
+		if (AIController::ins()->myBase->hp < 1500)
+			this->worth = 201;
 		return this->worth;
 	}
 
@@ -973,6 +975,8 @@ public:
 					enemyByBaseCount++;
 			if (enemyByBaseCount >= 3 && (Memory::ins()->enemyBaseLastSeen > 1000 || myCon->round() - Memory::ins()->enemyBaseLastSeen >= 10))
 				Memory::ins()->lastRoundEnemyProtBase = myCon->round();
+			if (enemyByBaseCount >= 3 && Memory::ins()->lastStrategy[worker] == "PlugEye")
+				Memory::ins()->lastRoundEnemyProtBase = 1000;
 			if (Memory::ins()->lastRoundEnemyProtBase <= 1000 && myCon->round() - Memory::ins()->lastRoundEnemyProtBase <= 30 && Memory::ins()->currentEnemyBaseHp() >= 300)
 				return worth;
 			if (enemiesInRange(worker) <= 1)
@@ -981,7 +985,7 @@ public:
 				this->worth -= 100;
 			for (auto x : AIController::ins()->strategyPool())
 				if (x->getWorker() == worker && x->getName() == "GoHome")
-					if (x->getWorth() >= goBackHomeArg)
+					if (x->getWorth() >= goBackHomeArg && AIController::ins()->myBase->hp >= 1500)
 						this->worth += 150;
 		}
 
@@ -1110,6 +1114,7 @@ void AIController::assignBaseAttack()
 	UnitFilter filter;
 	filter.setAreaFilter(new Circle(myBase->pos, MILITARY_BASE_RANGE));
 	for (auto x : myCon->enemyUnits(filter))
+	{
 		if (!minBloodHero)
 			minBloodHero = x;
 		else if (x->canUseSkill("Sacrifice"))
@@ -1121,6 +1126,7 @@ void AIController::assignBaseAttack()
 			minBloodHero = x;
 		else if (x->hp < minBloodHero->hp && x->hp > 0)
 			minBloodHero = x;
+	}
 
 	if (!minBloodHero)
 		if (enemiesInRange(AIController::ins()->myBase) == 0)
