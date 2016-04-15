@@ -564,6 +564,8 @@ public:
 			return this->worth;
 
 		this->worth += int(((double)target->max_hp / target->hp) * attackArg);
+		if (dis2(target->pos, AIController::ins()->myBase->pos) <= AIController::ins()->myBase->view)
+			worth += 300;
 		if (target->findBuff("Dizzy") != nullptr)
 			this->worth -= hammerDizzy;
 		return this->worth;
@@ -652,6 +654,8 @@ public:
 			if (target->findBuff("Dizzy") != nullptr)
 				this->worth += hammerDizzy;
 		}
+		if (dis2(worker->pos, target->pos) <= worker->range && dis2(target->pos, AIController::ins()->myBase->pos) <= AIController::ins()->myBase->view)
+			worth += 300;
 		return this->worth;
 	}
 
