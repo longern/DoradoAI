@@ -59,40 +59,8 @@ class Memory
 {
 public:
 	static Memory *ins() { if (_instance) return _instance; else return _instance = new Memory; }
-	static Memory *updateMemory()
-	{
-		if (AIController::ins()->enemyBase)
-		{
-			ins()->enemyBaseLastHp = AIController::ins()->enemyBase->hp;
-			ins()->enemyBaseLastSeen = myCon->round();
-		}
+	static void updateMemory();
 
-		UnitFilter filter;
-
-		int enemyCount = 0;
-		filter.setAreaFilter(new Circle(MINE_POS[0], 144), "w");
-		for (auto x : myCon->enemyUnits(filter))
-			if (x->isHero())
-				++enemyCount;
-		int friendCount = 0;
-		for (auto x : myCon->friendlyUnits(filter))
-			if (x->isHero())
-				++friendCount;
-		if (enemyCount > 2 && friendCount == 0)
-			Memory::ins()->lastRoundEnemyOccuCent = myCon->round();
-
-		enemyCount = 0;
-		filter.setAreaFilter(new Circle((myCon->camp() ? MINE_POS[4] : MINE_POS[1]), 324), "w");
-		for (auto x : myCon->enemyUnits(filter))
-			if (x->isHero())
-				++enemyCount;
-		friendCount = 0;
-		for (auto x : myCon->friendlyUnits(filter))
-			if (x->isHero())
-				++friendCount;
-		if (enemyCount > 3 && friendCount == 0)
-			Memory::ins()->lastRoundEnemyOccuMine1 = myCon->round();
-	}
 private:
 	Memory()
 	{
@@ -104,6 +72,7 @@ private:
 		lastRoundEnemyOccuMine1 = 1000000000;
 		lastRoundEnemyProtBase = 1000000000;
 		catchJungleRound = 1000000000;
+		randMine = vector<int>({ 1, 2, 5, 6 }).at(rand() % 4);
 	}
 	static Memory *_instance;
 public:
@@ -115,6 +84,7 @@ public:
 	int lastRoundEnemyOccuMine1;
 	int lastRoundEnemyProtBase;
 	int catchJungleRound;
+	int randMine;
 
 public:
 	int currentEnemyBaseHp() { return min(2 * enemyBaseLastSeen + enemyBaseLastHp, 3000); }
@@ -186,6 +156,20 @@ Pos campRotate(Pos p)
 		return p;
 }
 
+Pos getMineByCamp(int cid)  
+{
+	// cid is the index of MINE_POS when in camp 0
+	// this function will convert the position when you in camp 1
+	if (myCon->camp() == 0)
+		return MINE_POS[cid];
+	if (cid == 0)
+		return MINE_POS[0];
+	if (cid >= 1 && cid <= 4)
+		return MINE_POS[5 - cid];
+	else
+		return MINE_POS[11 - cid];
+}
+
 int friendsInRange(PUnit *worker)
 {
 	int res = 0;
@@ -209,6 +193,40 @@ int enemiesInRange(PUnit *worker, int range2 = 256)
 }
 /********************************************************************************/
 
+void Memory::updateMemory()
+{
+	if (AIController::ins()->enemyBase)
+	{
+		ins()->enemyBaseLastHp = AIController::ins()->enemyBase->hp;
+		ins()->enemyBaseLastSeen = myCon->round();
+	}
+
+	UnitFilter filter;
+
+	int enemyCount = 0;
+	filter.setAreaFilter(new Circle(MINE_POS[0], 144), "w");
+	for (auto x : myCon->enemyUnits(filter))
+		if (x->isHero())
+			++enemyCount;
+	int friendCount = 0;
+	for (auto x : myCon->friendlyUnits(filter))
+		if (x->isHero())
+			++friendCount;
+	if (enemyCount > 2 && friendCount == 0)
+		Memory::ins()->lastRoundEnemyOccuCent = myCon->round();
+
+	enemyCount = 0;
+	filter.setAreaFilter(new Circle(getMineByCamp(Memory::ins()->randMine), 324), "w");
+	for (auto x : myCon->enemyUnits(filter))
+		if (x->isHero())
+			++enemyCount;
+	friendCount = 0;
+	for (auto x : myCon->friendlyUnits(filter))
+		if (x->isHero())
+			++friendCount;
+	if (enemyCount > 3 && friendCount <= 1)
+		Memory::ins()->lastRoundEnemyOccuMine1 = myCon->round();
+}
 
 /******************************** Path Function *********************************/
 void findPath(const PMap &map, Pos start, Pos dest, const vector<Pos> &blocks, vector<Pos> &path)
@@ -827,11 +845,11 @@ public:
 			return worth;
 
 		int enemyCount = 0;
-		filter.setAreaFilter(new Circle((myCon->camp() ? MINE_POS[4] : MINE_POS[1]), 324), "w");
+		filter.setAreaFilter(new Circle(getMineByCamp(Memory::ins()->randMine), 324), "w");
 		for (auto x : myCon->enemyUnits(filter))
 			if (x->isHero())
 				++enemyCount;
-		if (dis2(worker->pos, (myCon->camp() ? MINE_POS[4] : MINE_POS[1])) <= worker->view && enemyCount == 0)
+		if (dis2(worker->pos, getMineByCamp(Memory::ins()->randMine)) <= worker->view && enemyCount == 0)
 			Memory::ins()->lastRoundEnemyOccuMine1 = 1000000000;
 
 		if (Memory::ins()->lastRoundEnemyOccuMine1 <= 1000 && myCon->round() - Memory::ins()->lastRoundEnemyOccuMine1 >= 30)
@@ -857,7 +875,7 @@ public:
 		if (Memory::ins()->badSituation || friendsInCenter == 0 && Memory::ins()->lastRoundEnemyOccuCent <= 1000)
 			this->worth += miningArg;
 
-		if (target == (myCon->camp() ? MINE_POS[1] : MINE_POS[4]))
+		if (target == getMineByCamp(4))
 		{
 			enemyCount = 0;
 			filter.setAreaFilter(new Circle(target, 324), "w");
@@ -879,7 +897,7 @@ public:
 			else
 				this->worth = 0;
 		}
-		else if (target == (myCon->camp() ? MINE_POS[4] : MINE_POS[1]))
+		else if (target == getMineByCamp(Memory::ins()->randMine))
 			this->worth += 50;
 
 		return this->worth;
@@ -1069,13 +1087,12 @@ void AIController::buyNewHero()
 	}
 	else
 	{
-		int heroCount = 0;
-		for (auto x : myCon->friendlyUnits())
-			if (x->isHero())
-				heroCount++;
+		int heroCount = myHeros.size();
 		int newHero = heroCount % 3;
 		if (newHero == 1 || newHero == 2)
 			newHero = 3 - newHero;
+		if (heroCount == 7)
+			newHero = 0;
 		myCon->chooseHero(HERO_NAME[newHero]);
 	}
 }
