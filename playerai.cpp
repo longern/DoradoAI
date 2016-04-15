@@ -488,7 +488,10 @@ public:
 
 		if (dis2(worker->pos, target->pos) <= supportRange)
 		{
-			this->worth += int(((double)target->max_hp / target->hp) * attackArg);
+			if (target->hp < 80 && dis2(worker->pos, target->pos) > worker->range && target->speed > worker->speed && !target->findBuff("Dizzy"))
+				this->worth += 230;
+			else
+				this->worth += int(((double)target->max_hp / target->hp) * attackArg);
 			if (dis2(target->pos, AIController::ins()->myBase->pos) <= AIController::ins()->myBase->view)
 				worth += 300;
 			if (worker->findBuff("WinOrDie"))
@@ -1109,7 +1112,11 @@ void AIController::assignBaseAttack()
 	UnitFilter filter;
 	filter.setAreaFilter(new Circle(myBase->pos, MILITARY_BASE_RANGE));
 	for (auto x : myCon->enemyUnits(filter))
-		if (!minBloodHero || x->hp < minBloodHero->hp && x->hp > 0)
+		if (!minBloodHero)
+			minBloodHero = x;
+		else if (minBloodHero->name != strHammerguard && x->name == strHammerguard)
+			minBloodHero = x;
+		else if (x->hp < minBloodHero->hp && x->hp > 0)
 			minBloodHero = x;
 
 	if (!minBloodHero)
