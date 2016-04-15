@@ -751,8 +751,6 @@ public:
 			if (friendsInRange(worker) + 3 < enemiesInRange(worker))
 				this->worth = goBackHomeArg;
 		}
-		if (AIController::ins()->myBase->hp < 1500)
-			this->worth = 201;
 		return this->worth;
 	}
 
@@ -975,8 +973,6 @@ public:
 					enemyByBaseCount++;
 			if (enemyByBaseCount >= 3 && (Memory::ins()->enemyBaseLastSeen > 1000 || myCon->round() - Memory::ins()->enemyBaseLastSeen >= 10))
 				Memory::ins()->lastRoundEnemyProtBase = myCon->round();
-			if (enemyByBaseCount >= 3 && Memory::ins()->lastStrategy[worker] == "PlugEye")
-				Memory::ins()->lastRoundEnemyProtBase = 1000;
 			if (Memory::ins()->lastRoundEnemyProtBase <= 1000 && myCon->round() - Memory::ins()->lastRoundEnemyProtBase <= 30 && Memory::ins()->currentEnemyBaseHp() >= 300)
 				return worth;
 			if (enemiesInRange(worker) <= 1)
@@ -985,7 +981,7 @@ public:
 				this->worth -= 100;
 			for (auto x : AIController::ins()->strategyPool())
 				if (x->getWorker() == worker && x->getName() == "GoHome")
-					if (x->getWorth() >= goBackHomeArg && AIController::ins()->myBase->hp >= 1500)
+					if (x->getWorth() >= goBackHomeArg)
 						this->worth += 150;
 		}
 
@@ -1116,6 +1112,11 @@ void AIController::assignBaseAttack()
 	for (auto x : myCon->enemyUnits(filter))
 		if (!minBloodHero)
 			minBloodHero = x;
+		else if (x->canUseSkill("Sacrifice"))
+		{
+			minBloodHero = x;
+			break;
+		}
 		else if (minBloodHero->name != strHammerguard && x->name == strHammerguard)
 			minBloodHero = x;
 		else if (x->hp < minBloodHero->hp && x->hp > 0)
