@@ -135,7 +135,7 @@ bool isMonster(string unitName)
 	return unitName == "Dragon" || unitName == "Roshan";
 }
 
-bool isActiveSkill(PSkill* mySkill) //判断技能是否为主动技能
+bool isActiveSkill(PSkill* mySkill)  // 判断技能是否为主动技能
 {
 	return ACTIVE_SKILLS.count(mySkill->name) != 0;
 }
@@ -355,13 +355,13 @@ void findPath(const PMap &map, Pos start, Pos dest, const vector<Pos> &blocks, v
 
 
 /********************************** Strategies **********************************/
-class Strategy //策略基类
+class Strategy  // 策略基类
 {
 public:
 	Strategy() { }
 	Strategy(PUnit *worker, std::string name) : worker(worker), name(name) { }
-	virtual int countWorth() = 0; //计算某种策略的实行价值
-	virtual void work() = 0; //实现这种策略
+	virtual int countWorth() = 0;  // 计算某种策略的实行价值
+	virtual void work() = 0;  // 实现这种策略
 
 public:
 	void setWorker(PUnit* worker) { this->worker = worker; }
@@ -379,7 +379,7 @@ protected:
 class AIHero  // 对应每个英雄的策略决策
 {
 public:
-	AIHero(PUnit* newHero) { mHero = newHero; mStrategy = nullptr; } //默认选择回家的策略
+	AIHero(PUnit* newHero) { mHero = newHero; mStrategy = nullptr; }  // 默认选择回家的策略
 	~AIHero() { if (mStrategy != nullptr) delete mStrategy; }
 
 public:
@@ -396,7 +396,7 @@ public:
 		}
 	}
 
-	void action() { if (mStrategy) mStrategy->work(); } //进行当前的最优策略
+	void action() { if (mStrategy) mStrategy->work(); }  // 进行当前的最优策略
 	PUnit *getHero() { return mHero; }
 	Strategy *getStrategy() { return mStrategy; }
 private:
@@ -486,7 +486,7 @@ public:
 		if (target->findBuff("Reviving") != nullptr || target->hp <= 0)
 			return this->worth = strategyDisabled;
 
-		if (dis2(worker->pos, target->pos) <= 121)
+		if (dis2(worker->pos, target->pos) <= supportRange)
 		{
 			if (target->hp < 80 && dis2(worker->pos, target->pos) > worker->range && target->speed > worker->speed && !target->findBuff("Dizzy"))
 				this->worth += 230;
@@ -647,8 +647,6 @@ public:
 			return this->worth = strategyDisabled;
 		if (target->findBuff("Reviving"))
 			return this->worth;
-		if (target->isWild())
-			this->worth -= 2000;
 		if (dis(worker->pos, target->pos) <= sqrt(worker->range) + sqrt(worker->speed) / 2)
 		{
 			this->worth += int(((double)target->max_hp / target->hp) * attackArg * 2);
@@ -751,8 +749,6 @@ public:
 			if (friendsInRange(worker) + 3 < enemiesInRange(worker))
 				this->worth = goBackHomeArg;
 		}
-		if (AIController::ins()->myBase->hp < 1500)
-			this->worth = 201;
 		return this->worth;
 	}
 
@@ -979,13 +975,13 @@ public:
 				Memory::ins()->lastRoundEnemyProtBase = 1000;
 			if (Memory::ins()->lastRoundEnemyProtBase <= 1000 && myCon->round() - Memory::ins()->lastRoundEnemyProtBase <= 30 && Memory::ins()->currentEnemyBaseHp() >= 300)
 				return worth;
-			if (enemiesInRange(worker) <= 1)
+			if (enemiesInRange(worker) <= 1 && myCon->gold() >= 150)
 				this->worth += 200;
 			if (AIController::ins()->myBase->hp < 1500 && Memory::ins()->lastStrategy[worker] != "PushBase")
 				this->worth -= 100;
 			for (auto x : AIController::ins()->strategyPool())
 				if (x->getWorker() == worker && x->getName() == "GoHome")
-					if (x->getWorth() >= goBackHomeArg && AIController::ins()->myBase->hp >= 1500)
+					if (x->getWorth() >= goBackHomeArg)
 						this->worth += 150;
 		}
 
@@ -1115,6 +1111,8 @@ void AIController::assignBaseAttack()
 	filter.setAreaFilter(new Circle(myBase->pos, MILITARY_BASE_RANGE));
 	for (auto x : myCon->enemyUnits(filter))
 	{
+		if (x->hp <= 0)
+			continue;
 		if (!minBloodHero)
 			minBloodHero = x;
 		else if (x->canUseSkill("Sacrifice"))
@@ -1124,7 +1122,7 @@ void AIController::assignBaseAttack()
 		}
 		else if (minBloodHero->name != strHammerguard && x->name == strHammerguard)
 			minBloodHero = x;
-		else if (x->hp < minBloodHero->hp && x->hp > 0)
+		else if (x->hp < minBloodHero->hp)
 			minBloodHero = x;
 	}
 
