@@ -993,10 +993,7 @@ public:
 		myCon->selectUnit(worker);
 		if (AIController::ins()->enemyBase)
 		{
-			if (worker->name == strHammerguard && worker->canUseSkill("HammerAttack") && dis2(worker->pos, AIController::ins()->enemyBase->pos) <= 36)
-				myCon->useSkill("HammerAttack", AIController::ins()->enemyBase);
-			else
-				myCon->attack(AIController::ins()->enemyBase);
+			myCon->attack(AIController::ins()->enemyBase);
 		}
 		else
 		{
