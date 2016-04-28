@@ -72,7 +72,7 @@ private:
 		lastRoundEnemyOccuMine1 = 1000000000;
 		lastRoundEnemyProtBase = 1000000000;
 		catchJungleRound = 1000000000;
-		randMine = vector<int>({ 1, 2, 5, 6 }).at(rand() % 4);
+		randMine = vector<int>({ 1, 6 }).at(rand() % 2);
 	}
 	static Memory *_instance;
 public:
@@ -115,7 +115,16 @@ namespace lsy
 	static const std::string &strBerserker = HERO_NAME[2];
 	static const std::string &strScouter = HERO_NAME[3];
 
-	static const std::vector<Pos> DISABLE_POINTS = { Pos(31, 58), Pos(32, 57), Pos(33, 56), Pos(33, 55) };
+	static const std::vector<Pos> initPath[8] = {
+	{ Pos(19,16),Pos(21,20),Pos(24,24),Pos(28,27),Pos(30,29),Pos(32,31),Pos(36,34),Pos(39,38),Pos(42,42),Pos(45,46),Pos(48,50),Pos(52,53),Pos(55,57),Pos(59,60),Pos(62,64),Pos(66,67),Pos(69,71) },
+	{ Pos(24,12),Pos(28,20),Pos(29,23),Pos(30,26),Pos(31,29),Pos(32,32),Pos(34,34),Pos(36,36),Pos(38,38),Pos(40,40),Pos(42,42),Pos(44,44),Pos(46,46),Pos(48,48),Pos(50,50),Pos(52,52),Pos(54,54),Pos(57,55),Pos(58,58),Pos(60,60),Pos(63,61),Pos(65,63),Pos(67,65),Pos(69,67) },
+	{ Pos(22,14),Pos(25,18),Pos(28,22),Pos(31,26),Pos(34,30),Pos(37,34),Pos(40,38),Pos(43,42),Pos(46,45),Pos(49,49),Pos(53,52),Pos(56,56),Pos(60,59),Pos(63,63),Pos(67,66),Pos(70,70) },
+	{ Pos(21,15),Pos(24,20),Pos(27,25),Pos(30,30),Pos(34,34),Pos(38,38),Pos(42,42),Pos(46,46),Pos(50,50),Pos(54,54),Pos(58,58),Pos(62,62),Pos(66,66),Pos(70,70) },
+	{ Pos(127,138) },
+	{ Pos(129,135) },
+	{ Pos(128,136) },
+	{ Pos(127,137) }
+	};
 }
 
 using namespace lsy;
@@ -168,6 +177,13 @@ Pos getMineByCamp(int cid)
 		return MINE_POS[5 - cid];
 	else
 		return MINE_POS[11 - cid];
+}
+
+int getHeroType(string name)
+{
+	for (int i = 0; i < 4; ++i)
+		if (HERO_NAME[i] == name)
+			return i;
 }
 
 int friendsInRange(PUnit *worker)
@@ -231,31 +247,26 @@ void Memory::updateMemory()
 /******************************** Path Function *********************************/
 void findPath(const PMap &map, Pos start, Pos dest, const vector<Pos> &blocks, vector<Pos> &path)
 {
-	if (dis2(start, dest) >= 1600)
+	struct Node
 	{
-		findShortestPath(map, start, dest, blocks, path);
-		return;
-	}
-
-	struct Node {
 		int x, y;
 		int level;
 		int priority;
 
-		Node() :x(0), y(0), level(0), priority(0) {}
-		Node(int xp, int yp, int d, int p) :x(xp), y(yp), level(d), priority(p) {}
+		Node() : x(0), y(0), level(0), priority(0) {}
+		Node(int xp, int yp, int d, int p) : x(xp), y(yp), level(d), priority(p) {}
 		void updatePriority(int xDest, int yDest)
 		{
-			priority = level + estimate(xDest, yDest) * 9;
+			priority = level + estimate(xDest, yDest);
 		}
 		void nextLevel()
 		{
-			level += 10;
+			level += 100;
 		}
-		int estimate(const int & xDest, const int & yDest) const
+		int estimate(const int &xDest, const int &yDest) const
 		{
 			int xd = xDest - x, yd = yDest - y;
-			return static_cast<int>(sqrt(xd * xd + yd * yd));
+			return static_cast<int>(10.0 * (sqrt(2.0) * std::min(xd, yd) + 1.0 * std::abs(xd - yd)));
 		}
 		bool operator < (const Node &b) const
 		{
@@ -264,9 +275,9 @@ void findPath(const PMap &map, Pos start, Pos dest, const vector<Pos> &blocks, v
 	};
 	const int dx[] = { 1, 0, -1, 0 };
 	const int dy[] = { 0, 1, 0, -1 };
-	static int closed_nodes_map[MAP_SIZE][MAP_SIZE];
+	static unsigned char closed_nodes_map[MAP_SIZE][MAP_SIZE];
 	static int open_nodes_map[MAP_SIZE][MAP_SIZE];
-	static int dir_map[MAP_SIZE][MAP_SIZE];
+	static unsigned char dir_map[MAP_SIZE][MAP_SIZE];
 	priority_queue<Node> pq[2];
 	int pqi;
 	int i, j, x, y, xdx, ydy;
@@ -831,7 +842,10 @@ public:
 
 	void work() {
 		myCon->selectUnit(worker);
-		myCon->move(MINE_POS[0]);
+		if(myCon->round() <= initPath[myCon->camp() * 4 + getHeroType(worker->name)].size() - 1)
+			myCon->move(initPath[myCon->camp() * 4 + getHeroType(worker->name)][myCon->round()]);
+		else
+			myCon->move(MINE_POS[0]);
 	}
 private:
 };
@@ -969,11 +983,11 @@ public:
 			for (auto x : AIController::ins()->enemyHeros)
 				if (dis2(x->pos, campRotate(MILITARY_BASE_POS[1])) <= 625)
 					enemyByBaseCount++;
-			if (enemyByBaseCount >= 3 && (Memory::ins()->enemyBaseLastSeen > 1000 || myCon->round() - Memory::ins()->enemyBaseLastSeen >= 10))
+			if (enemyByBaseCount >= 3 && (Memory::ins()->enemyBaseLastSeen > 1000 || myCon->round() - Memory::ins()->enemyBaseLastSeen >= 20))
 				Memory::ins()->lastRoundEnemyProtBase = myCon->round();
 			if (enemyByBaseCount >= 3 && Memory::ins()->lastStrategy[worker] == "PlugEye")
-				Memory::ins()->lastRoundEnemyProtBase = 1000;
-			if (Memory::ins()->lastRoundEnemyProtBase <= 1000 && myCon->round() - Memory::ins()->lastRoundEnemyProtBase <= 30 && Memory::ins()->currentEnemyBaseHp() >= 300)
+				Memory::ins()->lastRoundEnemyProtBase = myCon->round() + 100;
+			if (Memory::ins()->lastRoundEnemyProtBase <= 1000 && myCon->round() - Memory::ins()->lastRoundEnemyProtBase <= 35 && Memory::ins()->currentEnemyBaseHp() >= 300)
 				return worth;
 			if (enemiesInRange(worker) <= 1 && myCon->gold() >= 150)
 				this->worth += 200;
@@ -1022,7 +1036,7 @@ AIController::AIController(const PMap &map, const PPlayerInfo &info, PCommand &c
 {
 	instance = this;
 	_console = new Console(map, info, cmd);
-	//_console->changeShortestPathFunc(findPath);
+	_console->changeShortestPathFunc(findPath);
 
 	this->map = &map;
 	this->info = &info;
@@ -1084,10 +1098,10 @@ void AIController::buyNewHero()
 {
 	if (myCon->round() == 0 || AIController::myHeros.size() == 0)
 	{
-		myCon->chooseHero(HERO_NAME[0], campRotate(8, 50));
-		myCon->chooseHero(HERO_NAME[1], campRotate(20, 50));
-		myCon->chooseHero(HERO_NAME[2], campRotate(33, 50));
-		myCon->chooseHero(HERO_NAME[3], campRotate(0, 50));
+		myCon->chooseHero(HERO_NAME[0], initPath[myCon->camp() * 4][0]);
+		myCon->chooseHero(HERO_NAME[1], initPath[myCon->camp() * 4 + 1][0]);
+		myCon->chooseHero(HERO_NAME[2], initPath[myCon->camp() * 4 + 2][0]);
+		myCon->chooseHero(HERO_NAME[3], initPath[myCon->camp() * 4 + 3][0]);
 	}
 	else
 	{
