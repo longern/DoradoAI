@@ -67,7 +67,7 @@ private:
 		srand((unsigned int)time(nullptr));
 		badSituation = false;
 		enemyBaseLastHp = 3000;
-		enemyBaseLastSeen = 0;
+		enemyBaseLastSeen = 1000000000;
 		lastRoundEnemyOccuCent = 1000000000;
 		lastRoundEnemyOccuMine1 = 1000000000;
 		lastRoundEnemyProtBase = 1000000000;
@@ -105,7 +105,6 @@ namespace lsy
 	static int goBackHomeHp = 100, goBackHomeArg = 300;
 	static int hammerDizzy = 50;
 	static int strategyDisabled = -1 << 30;
-	static int bePushedMyBase = -2100000000;
 
 	static const std::vector<std::string> HERO_NAME = { "Hammerguard", "Master", "Berserker", "Scouter" };
 	static const std::set<std::string> ACTIVE_SKILLS = { "HammerAttack", "Blink", "Sacrifice", "SetObserver" };
@@ -116,15 +115,15 @@ namespace lsy
 	static const std::string &strScouter = HERO_NAME[3];
 
 	static const std::vector<Pos> initPath[8] = {
-	{ Pos(19,16),Pos(21,20),Pos(24,24),Pos(28,27),Pos(30,29),Pos(32,31),Pos(36,34),Pos(39,38),Pos(42,42),Pos(45,46),Pos(48,50),Pos(52,53),Pos(55,57),Pos(59,60),Pos(62,64),Pos(66,67),Pos(69,71) },
-	{ Pos(24,12),Pos(28,20),Pos(29,23),Pos(30,26),Pos(31,29),Pos(32,32),Pos(34,34),Pos(36,36),Pos(38,38),Pos(40,40),Pos(42,42),Pos(44,44),Pos(46,46),Pos(48,48),Pos(50,50),Pos(52,52),Pos(54,54),Pos(57,55),Pos(58,58),Pos(60,60),Pos(63,61),Pos(65,63),Pos(67,65),Pos(69,67) },
+	{ Pos(19,16),Pos(21,20),Pos(24,24),Pos(28,27),Pos(30,29),Pos(32,31),Pos(36,34),Pos(39,38),Pos(42,42),Pos(45,46),Pos(48,50),Pos(52,53),Pos(55,57),Pos(59,60),Pos(62,64),Pos(66,67),Pos(69,71),Pos(72,71) },
+	{ Pos(24,12),Pos(28,20),Pos(29,23),Pos(30,26),Pos(31,29),Pos(32,32),Pos(34,34),Pos(36,36),Pos(38,38),Pos(40,40),Pos(42,42),Pos(44,44),Pos(46,46),Pos(48,48),Pos(50,50),Pos(52,52),Pos(53,55),Pos(55,57),Pos(58,58),Pos(60,60),Pos(62,62),Pos(64,64),Pos(66,66),Pos(67,69),Pos(69,71),Pos(71,73) },
 	{ Pos(22,14),Pos(25,18),Pos(28,22),Pos(31,26),Pos(34,30),Pos(37,34),Pos(40,38),Pos(43,42),Pos(46,45),Pos(49,49),Pos(53,52),Pos(56,56),Pos(60,59),Pos(63,63),Pos(67,66),Pos(70,70) },
 	{ Pos(21,15),Pos(24,20),Pos(27,25),Pos(30,30),Pos(34,34),Pos(38,38),Pos(42,42),Pos(46,46),Pos(50,50),Pos(54,54),Pos(58,58),Pos(62,62),Pos(66,66),Pos(70,70) },
-	{ Pos(127,138) },
-	{ Pos(129,135) },
-	{ Pos(128,136) },
-	{ Pos(127,137) }
-	};
+	{ Pos(127,138),Pos(127,134),Pos(127,130),Pos(123,127),Pos(121,123),Pos(118,119),Pos(116,117),Pos(112,114),Pos(109,110),Pos(106,106),Pos(103,102),Pos(99,99),Pos(96,95),Pos(92,92),Pos(89,88),Pos(85,85),Pos(82,81),Pos(78,78),Pos(78,75),Pos(76,75) },
+	{ Pos(129,135),Pos(121,131),Pos(120,128),Pos(119,125),Pos(118,122),Pos(117,119),Pos(116,116),Pos(114,114),Pos(112,112),Pos(110,110),Pos(108,108),Pos(106,106),Pos(104,104),Pos(102,102),Pos(100,100),Pos(98,98),Pos(96,96),Pos(94,94),Pos(92,92),Pos(90,90),Pos(89,87),Pos(87,85),Pos(85,83),Pos(83,81),Pos(81,79) },
+	{ Pos(128,136),Pos(126,132),Pos(123,128),Pos(120,124),Pos(117,120),Pos(114,116),Pos(111,112),Pos(107,109),Pos(104,105),Pos(100,102),Pos(98,98),Pos(95,94),Pos(91,91),Pos(88,87),Pos(84,84),Pos(81,80),Pos(77,77) },
+	{ Pos(127,137),Pos(127,131),Pos(124,126),Pos(121,121),Pos(117,117),Pos(113,113),Pos(109,109),Pos(105,105),Pos(101,101),Pos(97,97),Pos(93,93),Pos(89,89),Pos(85,85),Pos(81,81),Pos(77,77) }
+	};  // 游戏开始时打表寻路
 }
 
 using namespace lsy;
@@ -499,14 +498,19 @@ public:
 
 		if (dis2(worker->pos, target->pos) <= supportRange)
 		{
-			if (target->hp < 80 && dis2(worker->pos, target->pos) > worker->range && target->speed > worker->speed && !target->findBuff("Dizzy"))
+			if (target->hp < 80 && dis2(worker->pos, target->pos) > worker->range && target->speed >= worker->speed && !target->findBuff("Dizzy"))
 				this->worth += 230;
 			else
 				this->worth += int(((double)target->max_hp / target->hp) * attackArg);
+			if (worker->findBuff("WinOrDie"))
+			{
+				if (dis2(worker->pos, target->pos) <= worker->range)
+					worth += 2000;
+				else
+					worth = 200;
+			}
 			if (dis2(target->pos, AIController::ins()->myBase->pos) <= AIController::ins()->myBase->view)
 				worth += 300;
-			if (worker->findBuff("WinOrDie"))
-				worth += 2000;
 			if (dis2(worker->pos, target->pos) <= worker->range)
 			{
 				if (target->name == strBerserker)
@@ -609,10 +613,7 @@ public:
 
 		if (myCon->round() == 1)
 		{
-			if (myCon->camp())
-				pos = Pos(worker->pos.x - 6, worker->pos.y - 6);
-			else
-				pos = Pos(worker->pos.x + 6, worker->pos.y + 6);
+			pos = initPath[myCon->camp() * 4 + 1][myCon->round()];
 			this->worth += 100000001;
 		}
 
@@ -658,6 +659,13 @@ public:
 			return this->worth = strategyDisabled;
 		if (target->findBuff("Reviving"))
 			return this->worth;
+		UnitFilter filter;
+		filter.setAreaFilter(new Circle(worker->pos, 144));
+		if(worker->findSkill("Attack")->cd > 1)
+			return worth;
+		for (auto x : myCon->enemyUnits(filter))
+			if (dis2(x->pos, worker->pos) <= x->range && !x->findBuff("Dizzy"))
+				return worth;
 		if (dis(worker->pos, target->pos) <= sqrt(worker->range) + sqrt(worker->speed) / 2)
 		{
 			this->worth += int(((double)target->max_hp / target->hp) * attackArg * 2);
@@ -714,7 +722,7 @@ public:
 			if (fHeroNearCenter >= 2)
 			{
 				targetPos = campRotate(99, 84);
-				this->worth += 190;
+				//this->worth += 190;
 			}
 		}
 	}
@@ -760,13 +768,18 @@ public:
 			if (friendsInRange(worker) + 3 < enemiesInRange(worker))
 				this->worth = goBackHomeArg;
 		}
+		if (AIController::ins()->myBase->hp < 3000)
+			this->worth = 198;
 		return this->worth;
 	}
 
 	void work()
 	{
 		myCon->selectUnit((const PUnit*)worker);
-		myCon->move(myCon->getMilitaryBase()->pos);
+		if (AIController::ins()->myBase->hp < 3000)
+			myCon->move(campRotate(20, 19));
+		else
+			myCon->move(myCon->getMilitaryBase()->pos);
 	}
 };
 
@@ -802,9 +815,6 @@ public:
 		if (myCon->gold() - callBackSpent < myCon->callBackCost(worker->level))
 			return worth = strategyDisabled;
 
-		if (enemyAttackBase > 0)
-			bePushedMyBase = myCon->round();
-
 		if (enemyAttackBase > friendProtectBase)
 			this->worth += 300;
 		return this->worth;
@@ -824,7 +834,7 @@ public:
 	int countWorth()
 	{
 		this->worth = miningArg;
-		if (myCon->round() < 18)
+		if (myCon->round() <= initPath[myCon->camp() * 4 + getHeroType(worker->name)].size() - 1)
 			return this->worth = 100000000;
 
 		const auto &currentDecisionPool = AIController::ins()->decisionPool();
@@ -835,8 +845,6 @@ public:
 
 		this->worth -= int(dis(worker->pos, MINE_POS[0]) / 5);
 		this->worth += centerMineArg;
-		if (myCon->getMilitaryBase()->hp < 1500)
-			worth += 50;
 		return this->worth;
 	}
 
@@ -966,8 +974,6 @@ public:
 	int countWorth()
 	{
 		this->worth = 0;
-		/*if (!bePushedMyBase)
-		return this->worth;*/
 		if (AIController::ins()->myHeros.size() < HERO_LIMIT - 1)
 			return this->worth;
 
@@ -1007,7 +1013,10 @@ public:
 		myCon->selectUnit(worker);
 		if (AIController::ins()->enemyBase)
 		{
-			myCon->attack(AIController::ins()->enemyBase);
+			if (worker->name == strBerserker && worker->canUseSkill("Sacrifice") && worker->findSkill("Attack")->cd <= 1 && dis2(AIController::ins()->enemyBase->pos, worker->pos) <= worker->range)
+				myCon->useSkill("Sacrifice", AIController::ins()->enemyBase);
+			else
+				myCon->attack(AIController::ins()->enemyBase);
 		}
 		else
 		{
@@ -1089,8 +1098,7 @@ void AIController::levelupHero()
 			heroCount++;
 
 	for (auto x : heroToLevelUp)
-		if (heroCount == HERO_LIMIT && myCon->gold() - myCon->levelUpCost(x->level) >= myCon->callBackCost(0)
-			|| x->level < 2 && !x->findBuff("Reviving"))
+		if (heroCount == HERO_LIMIT - 1 && myCon->gold() - myCon->levelUpCost(x->level) >= myCon->callBackCost(0))
 			myCon->buyHeroLevel(x);
 }
 
